@@ -65,14 +65,23 @@ func getAndValidateTextRequest(c *gin.Context, relayInfo *relaycommon.RelayInfo)
 }
 
 func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
-
 	relayInfo := relaycommon.GenRelayInfo(c)
-
-	// get & validate textRequest 获取并验证文本请求
-	textRequest, err := getAndValidateTextRequest(c, relayInfo)
-	if err != nil {
-		common.LogError(c, fmt.Sprintf("getAndValidateTextRequest failed: %s", err.Error()))
-		return service.OpenAIErrorWrapperLocal(err, "invalid_text_request", http.StatusBadRequest)
+	var textRequest *dto.GeneralOpenAIRequest
+	var err error
+	if val, exists := c.Get("textRequest"); exists {
+		textRequest = val.(*dto.GeneralOpenAIRequest)
+	} else {
+		// get & validate textRequest 获取并验证文本请求
+		textRequest, err = getAndValidateTextRequest(c, relayInfo)
+		if err != nil {
+			common.LogError(c, fmt.Sprintf("getAndValidateTextRequest failed: %s", err.Error()))
+			return service.OpenAIErrorWrapperLocal(err, "invalid_text_request", http.StatusBadRequest)
+		}
+		// 将消息中的图片链接转为base64
+		for i := range textRequest.Messages {
+			service.ConvertImageUrlsToBase64(&textRequest.Messages[i])
+		}
+		c.Set("textRequest", textRequest)
 	}
 
 	// map model name
