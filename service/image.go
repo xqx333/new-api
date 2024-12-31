@@ -3,13 +3,14 @@ package service
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
 	"io"
 	"one-api/common"
 	"strings"
-
+	"one-api/dto"
 	"golang.org/x/image/webp"
 )
 
@@ -136,4 +137,24 @@ func getImageConfig(reader io.Reader) (image.Config, string, error) {
 		return image.Config{}, "", err
 	}
 	return config, format, nil
+}
+
+func ConvertImageUrlsToBase64(m *dto.Message) {
+	contentList := m.ParseContent()
+	for i, cItem := range contentList {
+		if cItem.Type == dto.ContentTypeImageURL {
+			if urlValue, ok := cItem.ImageUrl.(dto.MessageImageUrl); ok {
+				if !strings.HasPrefix(urlValue.Url, "data:") &&
+					(strings.HasPrefix(urlValue.Url, "http://") || strings.HasPrefix(urlValue.Url, "https://")) {
+					mimeType, base64Data, err := GetImageFromUrl(urlValue.Url)
+					if err == nil && base64Data != "" {
+						urlValue.Url = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
+						contentList[i].ImageUrl = urlValue
+					}
+				}
+			}
+		}
+	}
+	newContentBytes, _ := json.Marshal(contentList)
+	m.Content = newContentBytes
 }
