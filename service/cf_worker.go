@@ -12,7 +12,7 @@ import (
 )
 
 func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
-	maxImageSize := (common.MaxImageSize * 1024 * 1024) + 1
+	maxImageSize := common.MaxImageSize * 1024 * 1024
 	requestTimeout := common.RequestTimeout
 
 	client := &http.Client{}
@@ -52,7 +52,7 @@ func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
 	}
 	
 	// 使用io.LimitReader限制读取的字节数
-	limitedReader := io.LimitReader(resp.Body, maxImageSize)
+	limitedReader := io.LimitReader(resp.Body, maxImageSize+1) // 读多一个字节以检测是否超出限制
 
 	// 读取数据到缓冲区
 	data, err := io.ReadAll(limitedReader)
