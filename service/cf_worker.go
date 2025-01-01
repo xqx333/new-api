@@ -11,46 +11,8 @@ import (
 	"time"
 )
 
-type limitedReadCloser struct {
-	reader   io.Reader     // 实际的 Reader（会使用 io.LimitReader 包装）
-	closer   io.Closer     // 原始 resp.Body，用于在必要时 Close
-	limit    int64         // 最大允许读取字节数
-	readSize int64         // 已经读取的字节数
-}
-
-func (l *limitedReadCloser) Read(p []byte) (int, error) {
-	if l.readSize >= l.limit {
-		// 一旦检测到超过限制，我们就返回错误
-		return 0, fmt.Errorf("exceeded maximum allowed size (%d bytes)", l.limit)
-	}
-
-	// 如果本次读取会超限，就截断到最大可读
-	if int64(len(p))+l.readSize > l.limit {
-		p = p[:l.limit-l.readSize]
-	}
-
-	n, err := l.reader.Read(p)
-	l.readSize += int64(n)
-	if err == io.EOF && l.readSize >= l.limit {
-		return 0, fmt.Errorf("exceeded maximum allowed size (%d bytes)", l.limit)
-	}
-	return n, err
-}
-
-func (l *limitedReadCloser) Close() error {
-	return l.closer.Close()
-}
-
-func newLimitedReadCloser(body io.ReadCloser, limit int64) io.ReadCloser {
-	return &limitedReadCloser{
-		reader: io.LimitReader(body, limit), // io.LimitReader 保证不会多读，但默认会返回 EOF
-		closer: body,
-		limit:  limit,
-	}
-}
-
 func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
-	maxImageSize := (common.MaxImageSize * 1024 * 1024) + 1
+	maxImageSize := int64(common.MaxImageSize * 1024 * 1024)
 	requestTimeout := common.RequestTimeout
 
 	client := &http.Client{}
@@ -84,9 +46,29 @@ func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
 		}
 	}
 
-	if maxImageSize > 0 {
-		resp.Body = newLimitedReadCloser(resp.Body, int64(maxImageSize))
+	// 如果未设置最大图片大小，则直接返回响应
+	if maxImageSize <= 0 {
+		return resp, nil
 	}
 	
+	// 使用io.LimitReader限制读取的字节数
+	limitedReader := io.LimitReader(resp.Body, maxImageSize+1) // 读多一个字节以检测是否超出限制
+
+	// 读取数据到缓冲区
+	data, err := io.ReadAll(limitedReader)
+	if err != nil {
+		resp.Body.Close()
+		return nil, fmt.Errorf("error reading response body: %v", err)
+	}
+
+	// 检查是否超过最大图片大小
+	if int64(len(data)) > maxImageSize {
+		resp.Body.Close()
+		return nil, fmt.Errorf("file size exceeds maximum allowed size of %d bytes", maxImageSize)
+	}
+
+	// 将读取的数据重新封装到新的ReadCloser中
+	resp.Body = io.NopCloser(bytes.NewBuffer(data))
+
 	return resp, nil
 }
