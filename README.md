@@ -90,6 +90,11 @@
 - `GEMINI_VISION_MAX_IMAGE_NUM`：Gemini模型最大图片数量，默认为 `16`，设置为 `-1` 则不限制。
 - `MAX_FILE_DOWNLOAD_MB`: 最大文件下载大小，单位 MB，默认为 `20`。
 - `CRYPTO_SECRET`：加密密钥，用于加密数据库内容。
+
+## 比原版New API多出的配置
+- `MaxImageSize`：设置请求图片的大小限制，默认不限制。
+- `RequestTimeout`：设置请求图片数据的超时时间，默认不限制。
+
 ## 部署
 > [!TIP]
 > 最新版Docker镜像：`calciumion/new-api:latest`  
