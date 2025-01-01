@@ -12,7 +12,7 @@ import (
 )
 
 func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
-	maxImageSize := common.MaxImageSize * 1024 * 1024
+	maxImageSize := int64(common.MaxImageSize * 1024 * 1024)
 	requestTimeout := common.RequestTimeout
 
 	client := &http.Client{}
