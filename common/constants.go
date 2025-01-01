@@ -120,6 +120,10 @@ var GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT
 var CohereSafetySetting = GetEnvOrDefaultString("COHERE_SAFETY_SETTING", "NONE")
 
+var MaxImageSize = GetEnvOrDefault("MAX_IMAGE_SIZE", 0) // 默认为0不限制大小
+
+var RequestTimeout = GetEnvOrDefault("REQUEST_TIMEOUT", 0) // 默认为0不限制超时时间
+
 const (
 	RequestIdKey = "X-Oneapi-Request-Id"
 )
