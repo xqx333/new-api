@@ -70,6 +70,7 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 	var err error
 	if val, exists := c.Get("textRequest"); exists {
 		textRequest = val.(*dto.GeneralOpenAIRequest)
+		relayInfo.IsStream = textRequest.Stream
 	} else {
 		// get & validate textRequest 获取并验证文本请求
 		textRequest, err = getAndValidateTextRequest(c, relayInfo)
@@ -121,6 +122,7 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 	var promptTokens int
 	if value, exists := c.Get("prompt_tokens"); exists {
 		promptTokens = value.(int)
+		relayInfo.PromptTokens = promptTokens
 	} else {
 		promptTokens, err = getPromptTokens(textRequest, relayInfo)
 		// count messages token error 计算promptTokens错误
