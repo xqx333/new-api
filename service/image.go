@@ -106,6 +106,12 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 		n, _ := io.ReadFull(response.Body, additionalData)
 		readData = append(readData, additionalData[:n]...)
 
+		// 通过开头部分数据检测图片的MIME类型
+		mimeType := http.DetectContentType(readData)
+		if !strings.HasPrefix(mimeType, "image/") {
+			return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", detectedType)
+		}
+
 		// 使用io.MultiReader组合已经读取的数据和response.Body
 		limitReader := io.MultiReader(bytes.NewReader(readData), response.Body)
 
