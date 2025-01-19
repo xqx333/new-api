@@ -94,6 +94,7 @@
 ## 比原版New API多出的配置
 - `MaxImageSize`：设置请求图片的大小限制，默认不限制。
 - `RequestTimeout`：设置请求图片数据的超时时间，默认不限制。
+- `ImageToBase64Enabled`：设置是否把文本请求中的图片链接转换为base64，默认为true，可以通过设置环境变量 IMAGE_TO_BASE64=false 来关闭这个功能。
 
 ## 部署
 > [!TIP]
