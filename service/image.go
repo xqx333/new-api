@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"image"
 	"io"
 	"one-api/common"
@@ -68,7 +69,7 @@ func GetImageFromUrl(url string) (mimeType string, data string, err error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", "", fmt.Errorf("fail to get image from url: %s", response.Status)
+		return "", "", fmt.Errorf("fail to get image from url: %s", resp.Status)
 	}
 
 	// 通过读取部分数据检测图片的MIME类型
@@ -107,12 +108,11 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 		return image.Config{}, "", err
 	}
 	
-	var readData []byte
 	sniffData := make([]byte, 512)
 	
-	n, err := io.ReadFull(response.Body, sniffData)
-	if readErr != nil && err != io.ErrUnexpectedEOF {
-		return image.Config{}, "", err
+	n, readErr := io.ReadFull(response.Body, sniffData)
+	if readErr != nil && readErr != io.ErrUnexpectedEOF {
+		return image.Config{}, "", readErr
 	}
 
 	readData := sniffData[:n]
