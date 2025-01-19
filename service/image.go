@@ -73,8 +73,8 @@ func GetImageFromUrl(url string) (mimeType string, data string, err error) {
 
 	// 通过读取部分数据检测图片的MIME类型
 	sniff := make([]byte, 512)
-	n, err := resp.Body.Read(sniff)
-	if err != nil{
+	n, err := io.ReadFull(resp.Body, sniff)
+	if err != nil && err != io.ErrUnexpectedEOF {
 		return "", "", err
 	}
 	mimeTypeDetected := http.DetectContentType(sniff[:n])
@@ -108,6 +108,19 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 	}
 	
 	var readData []byte
+	sniffData := make([]byte, 512)
+	
+	n, err := io.ReadFull(response.Body, sniffData)
+	if readErr != nil && err != io.ErrUnexpectedEOF {
+		return image.Config{}, "", err
+	}
+
+	readData := sniffData[:n]
+	mimeType := http.DetectContentType(readData)
+	if !strings.HasPrefix(mimeType, "image/") {
+		return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
+	}
+	
 	for _, limit := range []int64{1024 * 8, 1024 * 24, 1024 * 64} {
 		common.SysLog(fmt.Sprintf("try to decode image config with limit: %d", limit))
 
@@ -116,15 +129,8 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 		n, _ := io.ReadFull(response.Body, additionalData)
 		readData = append(readData, additionalData[:n]...)
 
-		// 通过开头部分数据检测图片的MIME类型
-		mimeType := http.DetectContentType(readData)
-		if !strings.HasPrefix(mimeType, "image/") {
-			return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
-		}
-
 		// 使用io.MultiReader组合已经读取的数据和response.Body
 		limitReader := io.MultiReader(bytes.NewReader(readData), response.Body)
-
 		var config image.Config
 		var format string
 		config, format, err = getImageConfig(limitReader)
