@@ -64,16 +64,32 @@ func GetImageFromUrl(url string) (mimeType string, data string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "image/") {
-		return "", "", fmt.Errorf("invalid content type: %s, required image/*", resp.Header.Get("Content-Type"))
-	}
+
 	defer resp.Body.Close()
-	buffer := bytes.NewBuffer(nil)
+
+	if resp.StatusCode != 200 {
+		return "", "", fmt.Errorf("fail to get image from url: %s", response.Status)
+	}
+
+	// 通过读取部分数据检测图片的MIME类型
+	sniff := make([]byte, 512)
+	n, err := resp.Body.Read(sniff)
+	if err != nil{
+		return "", "", err
+	}
+	mimeTypeDetected := http.DetectContentType(sniff[:n])
+	if !strings.HasPrefix(mimeTypeDetected, "image/") {
+		return "", "", fmt.Errorf("invalid content type: %s, required image/*", mimeTypeDetected)
+	}
+
+	// 将已读数据写回buffer，读剩余数据
+	buffer := bytes.NewBuffer(sniff[:n])
 	_, err = buffer.ReadFrom(resp.Body)
 	if err != nil {
-		return
+		return "", "", err
 	}
-	mimeType = resp.Header.Get("Content-Type")
+
+	mimeType = mimeTypeDetected
 	data = base64.StdEncoding.EncodeToString(buffer.Bytes())
 	return
 }
@@ -90,13 +106,7 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 		err = errors.New(fmt.Sprintf("fail to get image from url: %s", response.Status))
 		return image.Config{}, "", err
 	}
-
-	mimeType := response.Header.Get("Content-Type")
-
-	if !strings.HasPrefix(mimeType, "image/") {
-		return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
-	}
-
+	
 	var readData []byte
 	for _, limit := range []int64{1024 * 8, 1024 * 24, 1024 * 64} {
 		common.SysLog(fmt.Sprintf("try to decode image config with limit: %d", limit))
@@ -109,7 +119,7 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 		// 通过开头部分数据检测图片的MIME类型
 		mimeType := http.DetectContentType(readData)
 		if !strings.HasPrefix(mimeType, "image/") {
-			return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", detectedType)
+			return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
 		}
 
 		// 使用io.MultiReader组合已经读取的数据和response.Body
