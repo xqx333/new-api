@@ -80,7 +80,9 @@ func GetImageFromUrl(url string) (mimeType string, data string, err error) {
 	}
 	mimeTypeDetected := http.DetectContentType(sniff[:n])
 	if !strings.HasPrefix(mimeTypeDetected, "image/") {
-		return "", "", fmt.Errorf("invalid content type: %s, required image/*", mimeTypeDetected)
+		if !strings.HasPrefix(resp.Header.Get("Content-Type"), "image/") {
+			return "", "", fmt.Errorf("invalid content type: %s, required image/*", mimeTypeDetected)
+		}
 	}
 
 	// 将已读数据写回buffer，读剩余数据
@@ -117,8 +119,10 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 
 	readData := sniffData[:n]
 	mimeType := http.DetectContentType(readData)
-	if !strings.HasPrefix(mimeType, "image/") {
-		return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
+    	if !strings.HasPrefix(mimeType, "image/") {
+		if !strings.HasPrefix(response.Header.Get("Content-Type"), "image/") {
+			return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
+		}
 	}
 	
 	for _, limit := range []int64{1024 * 8, 1024 * 24, 1024 * 64} {
