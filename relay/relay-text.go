@@ -120,6 +120,20 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 		}
 	}
 
+	// 获取 promptTokens，如果上下文中已经存在，则直接使用
+	var promptTokens int
+	if value, exists := c.Get("prompt_tokens"); exists {
+		promptTokens = value.(int)
+		relayInfo.PromptTokens = promptTokens
+	} else {
+		promptTokens, err = getPromptTokens(textRequest, relayInfo)
+		// count messages token error 计算promptTokens错误
+		if err != nil {
+			return service.OpenAIErrorWrapper(err, "count_token_messages_failed", http.StatusInternalServerError)
+		}
+		c.Set("prompt_tokens", promptTokens)
+	}
+
 	if !getModelPriceSuccess {
 		preConsumedTokens := common.PreConsumedQuota
 		if textRequest.MaxTokens != 0 {
@@ -214,21 +228,6 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 		// reset status code 重置状态码
 		service.ResetStatusCode(openaiErr, statusCodeMappingStr)
 		return openaiErr
-	}
-	if usage == nil {
-		// 获取 promptTokens，如果上下文中已经存在，则直接使用
-		var promptTokens int
-		if value, exists := c.Get("prompt_tokens"); exists {
-			promptTokens = value.(int)
-			relayInfo.PromptTokens = promptTokens
-		} else {
-			promptTokens, err = getPromptTokens(textRequest, relayInfo)
-			// count messages token error 计算promptTokens错误
-			if err != nil {
-				return service.OpenAIErrorWrapper(err, "count_token_messages_failed", http.StatusInternalServerError)
-			}
-			c.Set("prompt_tokens", promptTokens)
-		}
 	}
 
 	if strings.HasPrefix(relayInfo.UpstreamModelName, "gpt-4o-audio") {
