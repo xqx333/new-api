@@ -166,9 +166,6 @@ func getImageConfig(reader io.Reader) (image.Config, string, error) {
 }
 
 func ConvertImageUrlsToBase64(m *dto.Message) {
-    if m.IsStringContent() {
-        return
-    }
 	contentList := m.ParseContent()
 	for i, cItem := range contentList {
 		if cItem.Type == dto.ContentTypeImageURL {
