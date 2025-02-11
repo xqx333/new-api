@@ -133,8 +133,11 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		tx = LOG_DB.Where("logs.type = ?", logType)
 	}
 
-	tx = tx.Joins("LEFT JOIN channels ON logs.channel_id = channels.id")
-	tx = tx.Select("logs.*, channels.name as channel_name")
+	// 检查是否使用独立日志数据库
+	if os.Getenv("LOG_SQL_DSN") == "" {
+		tx = tx.Joins("LEFT JOIN channels ON logs.channel_id = channels.id")
+		tx = tx.Select("logs.*, channels.name as channel_name")
+	}
 
 	if modelName != "" {
 		tx = tx.Where("logs.model_name like ?", modelName)
@@ -176,8 +179,11 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 		tx = LOG_DB.Where("logs.user_id = ? and logs.type = ?", userId, logType)
 	}
 
-	tx = tx.Joins("LEFT JOIN channels ON logs.channel_id = channels.id")
-	tx = tx.Select("logs.*, channels.name as channel_name")
+	// 检查是否使用独立日志数据库
+	if os.Getenv("LOG_SQL_DSN") == "" {
+		tx = tx.Joins("LEFT JOIN channels ON logs.channel_id = channels.id")
+		tx = tx.Select("logs.*, channels.name as channel_name")
+	}
 
 	if modelName != "" {
 		tx = tx.Where("logs.model_name like ?", modelName)
