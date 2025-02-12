@@ -91,11 +91,6 @@
 - `MAX_FILE_DOWNLOAD_MB`: 最大文件下载大小，单位 MB，默认为 `20`。
 - `CRYPTO_SECRET`：加密密钥，用于加密数据库内容。
 
-## 比原版New API多出的配置
-- `MAX_IMAGE_SIZE`：设置请求图片的大小限制，默认不限制，单位为MB。
-- `REQUEST_TIMEOUT`：设置请求图片数据的超时时间，默认不限制，单位为s。
-- `IMAGE_TO_BASE64`：设置是否把文本请求中的图片链接转换为base64，默认为true，可以通过设置环境变量 IMAGE_TO_BASE64=false 来关闭这个功能。
-
 ## 部署
 > [!TIP]
 > 最新版Docker镜像：`calciumion/new-api:latest`  
