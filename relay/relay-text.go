@@ -70,6 +70,7 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 	var err error
 	if val, exists := c.Get("textRequest"); exists {
 		textRequest = val.(*dto.GeneralOpenAIRequest)
+		textRequest.Model = c.GetString("original_model")
 		relayInfo.IsStream = textRequest.Stream
 	} else {
 		// get & validate textRequest 获取并验证文本请求
