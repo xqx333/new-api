@@ -59,7 +59,10 @@ func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
 			URL: originUrl,
 			Key: setting.WorkerValidKey,
 		}
-		return DoWorkerRequest(req)
+		resp, err = DoWorkerRequest(req)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		common.SysLog(fmt.Sprintf("downloading from origin: %s", originUrl))
 		req, err := http.NewRequest(http.MethodGet, originUrl, nil)
