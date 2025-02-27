@@ -133,7 +133,7 @@ export default function SettingClaudeModel(props) {
                   label={t('思考适配 BudgetTokens 百分比')}
                   field={'claude.thinking_adapter_budget_tokens_percentage'}
                   initValue={''}
-                  suffix={t('%')}
+                  extraText={t('0-1之间的小数')}
                   onChange={(value) => setInputs({ ...inputs, 'claude.thinking_adapter_budget_tokens_percentage': value })}
                 />
               </Col>
