@@ -10,6 +10,7 @@ import (
 	"one-api/dto"
 	relaycommon "one-api/relay/common"
 	"one-api/service"
+	"one-api/setting/model_setting"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -93,9 +94,10 @@ func RequestOpenAI2ClaudeMessage(textRequest dto.GeneralOpenAIRequest) (*ClaudeR
 		Tools:         claudeTools,
 	}
 
-	if strings.HasSuffix(textRequest.Model, "-thinking") {
+	if model_setting.GetClaudeSettings().ThinkingAdapterEnabled &&
+		strings.HasSuffix(textRequest.Model, "-thinking") {
 		if claudeRequest.MaxTokens == 0 {
-			claudeRequest.MaxTokens = 8192
+			claudeRequest.MaxTokens = uint(model_setting.GetClaudeSettings().ThinkingAdapterMaxTokens)
 		}
 
 		// 因为BudgetTokens 必须大于1024
@@ -106,7 +108,7 @@ func RequestOpenAI2ClaudeMessage(textRequest dto.GeneralOpenAIRequest) (*ClaudeR
 		// BudgetTokens 为 max_tokens 的 80%
 		claudeRequest.Thinking = &Thinking{
 			Type:         "enabled",
-			BudgetTokens: int(float64(claudeRequest.MaxTokens) * 0.8),
+			BudgetTokens: int(float64(claudeRequest.MaxTokens) * model_setting.GetClaudeSettings().ThinkingAdapterBudgetTokensPercentage),
 		}
 		// TODO: 临时处理
 		// https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#important-considerations-when-using-extended-thinking
@@ -296,7 +298,7 @@ func StreamResponseClaude2OpenAI(reqMode int, claudeResponse *ClaudeResponse) (*
 	response.Object = "chat.completion.chunk"
 	response.Model = claudeResponse.Model
 	response.Choices = make([]dto.ChatCompletionsStreamResponseChoice, 0)
-	tools := make([]dto.ToolCall, 0)
+	tools := make([]dto.ToolCallResponse, 0)
 	var choice dto.ChatCompletionsStreamResponseChoice
 	if reqMode == RequestModeCompletion {
 		choice.Delta.SetContentString(claudeResponse.Completion)
@@ -315,10 +317,10 @@ func StreamResponseClaude2OpenAI(reqMode int, claudeResponse *ClaudeResponse) (*
 			if claudeResponse.ContentBlock != nil {
 				//choice.Delta.SetContentString(claudeResponse.ContentBlock.Text)
 				if claudeResponse.ContentBlock.Type == "tool_use" {
-					tools = append(tools, dto.ToolCall{
+					tools = append(tools, dto.ToolCallResponse{
 						ID:   claudeResponse.ContentBlock.Id,
 						Type: "function",
-						Function: dto.FunctionCall{
+						Function: dto.FunctionResponse{
 							Name:      claudeResponse.ContentBlock.Name,
 							Arguments: "",
 						},
@@ -333,8 +335,8 @@ func StreamResponseClaude2OpenAI(reqMode int, claudeResponse *ClaudeResponse) (*
 				choice.Delta.SetContentString(claudeResponse.Delta.Text)
 				switch claudeResponse.Delta.Type {
 				case "input_json_delta":
-					tools = append(tools, dto.ToolCall{
-						Function: dto.FunctionCall{
+					tools = append(tools, dto.ToolCallResponse{
+						Function: dto.FunctionResponse{
 							Arguments: claudeResponse.Delta.PartialJson,
 						},
 					})
@@ -382,7 +384,7 @@ func ResponseClaude2OpenAI(reqMode int, claudeResponse *ClaudeResponse) *dto.Ope
 	if len(claudeResponse.Content) > 0 {
 		responseText = claudeResponse.Content[0].Text
 	}
-	tools := make([]dto.ToolCall, 0)
+	tools := make([]dto.ToolCallResponse, 0)
 	thinkingContent := ""
 
 	if reqMode == RequestModeCompletion {
@@ -403,10 +405,10 @@ func ResponseClaude2OpenAI(reqMode int, claudeResponse *ClaudeResponse) *dto.Ope
 			switch message.Type {
 			case "tool_use":
 				args, _ := json.Marshal(message.Input)
-				tools = append(tools, dto.ToolCall{
+				tools = append(tools, dto.ToolCallResponse{
 					ID:   message.Id,
 					Type: "function", // compatible with other OpenAI derivative applications
-					Function: dto.FunctionCall{
+					Function: dto.FunctionResponse{
 						Name:      message.Name,
 						Arguments: string(args),
 					},
