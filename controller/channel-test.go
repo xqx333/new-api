@@ -163,7 +163,7 @@ func buildTestRequest(model string) *dto.GeneralOpenAIRequest {
 	} else {
 		testRequest.MaxTokens = 1
 	}
-	content, _ := json.Marshal("hi")
+	content, _ := json.Marshal("bye")
 	testMessage := dto.Message{
 		Role:    "user",
 		Content: content,
