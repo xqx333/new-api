@@ -72,29 +72,30 @@ func GetImageFromUrl(url string) (mimeType string, data string, err error) {
 		return "", "", fmt.Errorf("fail to get image from url: %s", resp.Status)
 	}
 
-	// 通过读取部分数据检测图片的MIME类型
-	sniff := make([]byte, 512)
-	n, err := io.ReadFull(resp.Body, sniff)
-	if err != nil && err != io.ErrUnexpectedEOF {
-		return "", "", err
-	}
-	mimeTypeDetected := http.DetectContentType(sniff[:n])
-	if !strings.HasPrefix(mimeTypeDetected, "image/") {
-		if !strings.HasPrefix(resp.Header.Get("Content-Type"), "image/") {
-			return "", "", fmt.Errorf("invalid content type: %s, required image/*", mimeTypeDetected)
-		}
+	contentType := resp.Header.Get("Content-Type")
+
+	if contentType != "application/octet-stream" && !strings.HasPrefix(contentType, "image/") {
+		return "", "", fmt.Errorf("invalid content type: %s, required image/*", contentType)
 	}
 
-	// 将已读数据写回buffer，读剩余数据
-	buffer := bytes.NewBuffer(sniff[:n])
+	mimeType = contentType
+
+	buffer := bytes.NewBuffer(nil)
 	_, err = buffer.ReadFrom(resp.Body)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to read image data: %w", err)
+	}
+	data = base64.StdEncoding.EncodeToString(buffer.Bytes())
+	// Handle application/octet-stream type
+	if mimeType == "application/octet-stream" {
+		_, format, _, err := DecodeBase64ImageData(data)
+		if err != nil {
+			return "", "", err
+		}
+		mimeType = "image/" + format
 	}
 
-	mimeType = mimeTypeDetected
-	data = base64.StdEncoding.EncodeToString(buffer.Bytes())
-	return
+	return mimeType, data, nil
 }
 
 func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
@@ -109,22 +110,14 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 		err = errors.New(fmt.Sprintf("fail to get image from url: %s", response.Status))
 		return image.Config{}, "", err
 	}
-	
-	sniffData := make([]byte, 512)
-	
-	n, readErr := io.ReadFull(response.Body, sniffData)
-	if readErr != nil && readErr != io.ErrUnexpectedEOF {
-		return image.Config{}, "", readErr
+
+	mimeType := response.Header.Get("Content-Type")
+
+	if mimeType != "application/octet-stream" && !strings.HasPrefix(mimeType, "image/") {
+		return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
 	}
 
-	readData := sniffData[:n]
-	mimeType := http.DetectContentType(readData)
-    	if !strings.HasPrefix(mimeType, "image/") {
-		if !strings.HasPrefix(response.Header.Get("Content-Type"), "image/") {
-			return image.Config{}, "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
-		}
-	}
-	
+	var readData []byte
 	for _, limit := range []int64{1024 * 8, 1024 * 24, 1024 * 64} {
 		common.SysLog(fmt.Sprintf("try to decode image config with limit: %d", limit))
 
@@ -135,6 +128,7 @@ func DecodeUrlImageData(imageUrl string) (image.Config, string, error) {
 
 		// 使用io.MultiReader组合已经读取的数据和response.Body
 		limitReader := io.MultiReader(bytes.NewReader(readData), response.Body)
+
 		var config image.Config
 		var format string
 		config, format, err = getImageConfig(limitReader)
