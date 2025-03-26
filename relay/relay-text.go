@@ -88,6 +88,8 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 		c.Set("textRequest", textRequest)
 	}
 
+	common.SysLog(fmt.Sprintf("textRequest: %w", textRequest.Messages))
+
 	// map model name
 	//isModelMapped := false
 	modelMapping := c.GetString("model_mapping")
