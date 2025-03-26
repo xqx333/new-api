@@ -116,9 +116,6 @@ New API提供了丰富的功能，详细特性请参考[特性说明](https://do
 - `REQUEST_TIMEOUT`：设置请求图片数据的超时时间，默认不限制，若使用cf代理则该设置无效，单位为s。
 - `IMAGE_TO_BASE64`：设置是否把文本请求中的图片链接转换为base64，默认为true，可以通过设置环境变量 IMAGE_TO_BASE64=false 来关闭这个功能。
 
-## 比原版New API多出的功能
-- 可以通过读取响应体的部分数据检测图片的MIME类型而不仅是通过响应头
-
 ## 部署
 
 详细部署指南请参考[安装指南-部署方式](https://docs.newapi.pro/installation)：
