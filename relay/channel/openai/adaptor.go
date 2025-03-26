@@ -115,6 +115,12 @@ func (a *Adaptor) ConvertRequest(c *gin.Context, info *relaycommon.RelayInfo, re
 	if info.ChannelType != common.ChannelTypeOpenAI && info.ChannelType != common.ChannelTypeAzure {
 		request.StreamOptions = nil
 	}
+	
+	const deepseekMaxTokens = 4000
+	if strings.HasPrefix(request.Model, "deepseek") && request.MaxTokens > deepseekMaxTokens {
+		request.MaxTokens = 0
+	}
+	
 	if strings.HasPrefix(request.Model, "o1") || strings.HasPrefix(request.Model, "o3") {
 		if request.MaxCompletionTokens == 0 && request.MaxTokens != 0 {
 			request.MaxCompletionTokens = request.MaxTokens
