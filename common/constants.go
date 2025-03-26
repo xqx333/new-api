@@ -120,8 +120,6 @@ var GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT
 var CohereSafetySetting = GetEnvOrDefaultString("COHERE_SAFETY_SETTING", "NONE")
 
-var MaxImageSize = GetEnvOrDefault("MAX_IMAGE_SIZE", 0) // 默认为0不限制大小
-
 var RequestTimeout = GetEnvOrDefault("REQUEST_TIMEOUT", 0) // 默认为0不限制超时时间
 
 var ImageToBase64Enabled = GetEnvOrDefaultBool("IMAGE_TO_BASE64", true) // 是否把图片链接转换为base64，默认为true
