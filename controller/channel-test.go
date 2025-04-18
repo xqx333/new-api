@@ -156,12 +156,27 @@ func buildTestRequest(model string) *dto.GeneralOpenAIRequest {
 		Model:  "", // this will be set later
 		Stream: false,
 	}
-	if strings.HasPrefix(model, "o1") {
+
+	// 先判断是否为 Embedding 模型
+	if strings.Contains(strings.ToLower(model), "embedding") || // 其他 embedding 模型
+		strings.HasPrefix(model, "m3e") || // m3e 系列模型
+		strings.Contains(model, "bge-") {
+		testRequest.Model = model
+		// Embedding 请求
+		testRequest.Input = []string{"hello world"}
+		return testRequest
+	}
+	// 并非Embedding 模型
+	if strings.HasPrefix(model, "o") {
 		testRequest.MaxCompletionTokens = 10
-	} else if strings.HasPrefix(model, "gemini-2.0-flash-thinking") {
-		testRequest.MaxTokens = 2
+	} else if strings.Contains(model, "thinking") {
+		if !strings.Contains(model, "claude") {
+			testRequest.MaxTokens = 50
+		}
+	} else if strings.Contains(model, "gemini") {
+		testRequest.MaxTokens = 300
 	} else {
-		testRequest.MaxTokens = 1
+		testRequest.MaxTokens = 10
 	}
 	content, _ := json.Marshal("bye")
 	testMessage := dto.Message{
