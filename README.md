@@ -122,7 +122,6 @@ New API提供了丰富的功能，详细特性请参考[特性说明](https://do
 
 > [!TIP]
 > 最新版Docker镜像：`calciumion/new-api:latest`  
-> 默认账号root 密码123456
 
 ### 多机部署注意事项
 - 必须设置环境变量 `SESSION_SECRET`，否则会导致多机部署时登录状态不一致
@@ -136,7 +135,7 @@ New API提供了丰富的功能，详细特性请参考[特性说明](https://do
 
 #### 使用宝塔面板Docker功能部署
 安装宝塔面板（**9.2.0版本**及以上），在应用商店中找到**New-API**安装即可。
-[图文教程](BT.md)
+[图文教程](./docs/BT.md)
 
 #### 使用Docker Compose部署（推荐）
 ```shell

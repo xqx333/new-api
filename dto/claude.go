@@ -7,7 +7,7 @@ type ClaudeMetadata struct {
 }
 
 type ClaudeMediaMessage struct {
-	Type        string               `json:"type"`
+	Type        string               `json:"type,omitempty"`
 	Text        *string              `json:"text,omitempty"`
 	Model       string               `json:"model,omitempty"`
 	Source      *ClaudeMessageSource `json:"source,omitempty"`
@@ -50,6 +50,11 @@ func (c *ClaudeMediaMessage) GetStringContent() string {
 	return ""
 }
 
+func (c *ClaudeMediaMessage) GetJsonRowString() string {
+	jsonContent, _ := json.Marshal(c)
+	return string(jsonContent)
+}
+
 func (c *ClaudeMediaMessage) SetContent(content any) {
 	jsonContent, _ := json.Marshal(content)
 	c.Content = jsonContent
@@ -65,8 +70,9 @@ func (c *ClaudeMediaMessage) ParseMediaContent() []ClaudeMediaMessage {
 
 type ClaudeMessageSource struct {
 	Type      string `json:"type"`
-	MediaType string `json:"media_type"`
-	Data      any    `json:"data"`
+	MediaType string `json:"media_type,omitempty"`
+	Data      any    `json:"data,omitempty"`
+	Url       string `json:"url,omitempty"`
 }
 
 type ClaudeMessage struct {

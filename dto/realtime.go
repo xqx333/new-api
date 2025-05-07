@@ -43,19 +43,6 @@ type RealtimeUsage struct {
 	OutputTokenDetails OutputTokenDetails `json:"output_token_details"`
 }
 
-type InputTokenDetails struct {
-	CachedTokens         int `json:"cached_tokens"`
-	CachedCreationTokens int
-	TextTokens           int `json:"text_tokens"`
-	AudioTokens          int `json:"audio_tokens"`
-	ImageTokens          int `json:"image_tokens"`
-}
-
-type OutputTokenDetails struct {
-	TextTokens  int `json:"text_tokens"`
-	AudioTokens int `json:"audio_tokens"`
-}
-
 type RealtimeSession struct {
 	Modalities              []string                `json:"modalities"`
 	Instructions            string                  `json:"instructions"`

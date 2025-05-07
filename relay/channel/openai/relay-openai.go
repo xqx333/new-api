@@ -117,6 +117,7 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 	model := info.UpstreamModelName
 
 	var responseTextBuilder strings.Builder
+	var toolCount int
 	var usage = &dto.Usage{}
 	var streamItems []string // store stream items
 	var forceFormat bool
@@ -130,8 +131,6 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 		thinkToContent = think2Content
 	}
 
-	toolCount := 0
-
 	var (
 		lastStreamData string
 	)
@@ -142,7 +141,6 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 			if err != nil {
 				common.SysError("error handling stream format: " + err.Error())
 			}
-			info.SetFirstResponseTime()
 		}
 		lastStreamData = data
 		streamItems = append(streamItems, data)
@@ -170,8 +168,10 @@ func OaiStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rel
 			}
 		}
 	}
+
 	if shouldSendLastResp {
 		sendStreamData(c, info, lastStreamData, forceFormat, thinkToContent)
+		//err = handleStreamFormat(c, info, lastStreamData, forceFormat, thinkToContent)
 	}
 
 	// 处理token计算
@@ -594,4 +594,53 @@ func preConsumeUsage(ctx *gin.Context, info *relaycommon.RelayInfo, usage *dto.R
 	// clear usage
 	err := service.PreWssConsumeQuota(ctx, info, usage)
 	return err
+}
+
+func OpenaiHandlerWithUsage(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.OpenAIErrorWithStatusCode, *dto.Usage) {
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return service.OpenAIErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		return service.OpenAIErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
+	}
+	// Reset response body
+	resp.Body = io.NopCloser(bytes.NewBuffer(responseBody))
+	// We shouldn't set the header before we parse the response body, because the parse part may fail.
+	// And then we will have to send an error response, but in this case, the header has already been set.
+	// So the httpClient will be confused by the response.
+	// For example, Postman will report error, and we cannot check the response at all.
+	for k, v := range resp.Header {
+		c.Writer.Header().Set(k, v[0])
+	}
+	// reset content length
+	c.Writer.Header().Set("Content-Length", fmt.Sprintf("%d", len(responseBody)))
+	c.Writer.WriteHeader(resp.StatusCode)
+	_, err = io.Copy(c.Writer, resp.Body)
+	if err != nil {
+		return service.OpenAIErrorWrapper(err, "copy_response_body_failed", http.StatusInternalServerError), nil
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		return service.OpenAIErrorWrapper(err, "close_response_body_failed", http.StatusInternalServerError), nil
+	}
+
+	var usageResp dto.SimpleResponse
+	err = json.Unmarshal(responseBody, &usageResp)
+	if err != nil {
+		return service.OpenAIErrorWrapper(err, "parse_response_body_failed", http.StatusInternalServerError), nil
+	}
+	// format
+	if usageResp.InputTokens > 0 {
+		usageResp.PromptTokens += usageResp.InputTokens
+	}
+	if usageResp.OutputTokens > 0 {
+		usageResp.CompletionTokens += usageResp.OutputTokens
+	}
+	if usageResp.InputTokensDetails != nil {
+		usageResp.PromptTokensDetails.ImageTokens += usageResp.InputTokensDetails.ImageTokens
+		usageResp.PromptTokensDetails.TextTokens += usageResp.InputTokensDetails.TextTokens
+	}
+	return nil, &usageResp.Usage
 }
