@@ -6,15 +6,31 @@ import {
   showSuccess,
   timestamp2string,
   renderGroup,
-  renderNumberWithPoint,
-  renderQuota
+  renderQuota,
+  getChannelIcon,
+  renderQuotaWithAmount
 } from '../../helpers/index.js';
+
+import {
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  HelpCircle,
+  TestTube,
+  Zap,
+  Timer,
+  Clock,
+  AlertTriangle,
+  Coins,
+  Tags
+} from 'lucide-react';
 
 import { CHANNEL_OPTIONS, ITEMS_PER_PAGE } from '../../constants/index.js';
 import {
   Button,
   Divider,
   Dropdown,
+  Empty,
   Input,
   InputNumber,
   Modal,
@@ -27,13 +43,15 @@ import {
   Typography,
   Checkbox,
   Card,
-  Select
+  Form
 } from '@douyinfe/semi-ui';
+import {
+  IllustrationNoResult,
+  IllustrationNoResultDark
+} from '@douyinfe/semi-illustrations';
 import EditChannel from '../../pages/Channel/EditChannel.js';
 import {
-  IconList,
   IconTreeTriangleDown,
-  IconFilter,
   IconPlus,
   IconRefresh,
   IconSetting,
@@ -64,7 +82,12 @@ const ChannelsTable = () => {
       type2label[0] = { value: 0, label: t('未知类型'), color: 'grey' };
     }
     return (
-      <Tag size='large' color={type2label[type]?.color} shape='circle'>
+      <Tag
+        size='large'
+        color={type2label[type]?.color}
+        shape='circle'
+        prefixIcon={getChannelIcon(type)}
+      >
         {type2label[type]?.label}
       </Tag>
     );
@@ -74,7 +97,7 @@ const ChannelsTable = () => {
     return (
       <Tag
         color='light-blue'
-        prefixIcon={<IconList />}
+        prefixIcon={<Tags size={14} />}
         size='large'
         shape='circle'
         type='light'
@@ -88,25 +111,25 @@ const ChannelsTable = () => {
     switch (status) {
       case 1:
         return (
-          <Tag size='large' color='green' shape='circle'>
+          <Tag size='large' color='green' shape='circle' prefixIcon={<CheckCircle size={14} />}>
             {t('已启用')}
           </Tag>
         );
       case 2:
         return (
-          <Tag size='large' color='yellow' shape='circle'>
+          <Tag size='large' color='yellow' shape='circle' prefixIcon={<XCircle size={14} />}>
             {t('已禁用')}
           </Tag>
         );
       case 3:
         return (
-          <Tag size='large' color='yellow' shape='circle'>
+          <Tag size='large' color='yellow' shape='circle' prefixIcon={<AlertCircle size={14} />}>
             {t('自动禁用')}
           </Tag>
         );
       default:
         return (
-          <Tag size='large' color='grey' shape='circle'>
+          <Tag size='large' color='grey' shape='circle' prefixIcon={<HelpCircle size={14} />}>
             {t('未知状态')}
           </Tag>
         );
@@ -118,31 +141,31 @@ const ChannelsTable = () => {
     time = time.toFixed(2) + t(' 秒');
     if (responseTime === 0) {
       return (
-        <Tag size='large' color='grey' shape='circle'>
+        <Tag size='large' color='grey' shape='circle' prefixIcon={<TestTube size={14} />}>
           {t('未测试')}
         </Tag>
       );
     } else if (responseTime <= 1000) {
       return (
-        <Tag size='large' color='green' shape='circle'>
+        <Tag size='large' color='green' shape='circle' prefixIcon={<Zap size={14} />}>
           {time}
         </Tag>
       );
     } else if (responseTime <= 3000) {
       return (
-        <Tag size='large' color='lime' shape='circle'>
+        <Tag size='large' color='lime' shape='circle' prefixIcon={<Timer size={14} />}>
           {time}
         </Tag>
       );
     } else if (responseTime <= 5000) {
       return (
-        <Tag size='large' color='yellow' shape='circle'>
+        <Tag size='large' color='yellow' shape='circle' prefixIcon={<Clock size={14} />}>
           {time}
         </Tag>
       );
     } else {
       return (
-        <Tag size='large' color='red' shape='circle'>
+        <Tag size='large' color='red' shape='circle' prefixIcon={<AlertTriangle size={14} />}>
           {time}
         </Tag>
       );
@@ -324,19 +347,20 @@ const ChannelsTable = () => {
             <div>
               <Space spacing={1}>
                 <Tooltip content={t('已用额度')}>
-                  <Tag color='white' type='ghost' size='large' shape='circle'>
+                  <Tag color='white' type='ghost' size='large' shape='circle' prefixIcon={<Coins size={14} />}>
                     {renderQuota(record.used_quota)}
                   </Tag>
                 </Tooltip>
-                <Tooltip content={t('剩余额度') + record.balance + t('，点击更新')}>
+                <Tooltip content={t('剩余额度$') + record.balance + t('，点击更新')}>
                   <Tag
                     color='white'
                     type='ghost'
                     size='large'
                     shape='circle'
+                    prefixIcon={<Coins size={14} />}
                     onClick={() => updateChannelBalance(record)}
                   >
-                    ${renderNumberWithPoint(record.balance)}
+                    {renderQuotaWithAmount(record.balance)}
                   </Tag>
                 </Tooltip>
               </Space>
@@ -345,7 +369,7 @@ const ChannelsTable = () => {
         } else {
           return (
             <Tooltip content={t('已用额度')}>
-              <Tag color='white' type='ghost' size='large' shape='circle'>
+              <Tag color='white' type='ghost' size='large' shape='circle' prefixIcon={<Coins size={14} />}>
                 {renderQuota(record.used_quota)}
               </Tag>
             </Tooltip>
@@ -631,6 +655,44 @@ const ChannelsTable = () => {
     },
   ];
 
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activePage, setActivePage] = useState(1);
+  const [idSort, setIdSort] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
+  const [channelCount, setChannelCount] = useState(pageSize);
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [showEdit, setShowEdit] = useState(false);
+  const [enableBatchDelete, setEnableBatchDelete] = useState(false);
+  const [editingChannel, setEditingChannel] = useState({
+    id: undefined,
+  });
+  const [showEditTag, setShowEditTag] = useState(false);
+  const [editingTag, setEditingTag] = useState('');
+  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [enableTagMode, setEnableTagMode] = useState(false);
+  const [showBatchSetTag, setShowBatchSetTag] = useState(false);
+  const [batchSetTagValue, setBatchSetTagValue] = useState('');
+  const [showModelTestModal, setShowModelTestModal] = useState(false);
+  const [currentTestChannel, setCurrentTestChannel] = useState(null);
+  const [modelSearchKeyword, setModelSearchKeyword] = useState('');
+  const [modelTestResults, setModelTestResults] = useState({});
+  const [testingModels, setTestingModels] = useState(new Set());
+  const [isBatchTesting, setIsBatchTesting] = useState(false);
+  const [testQueue, setTestQueue] = useState([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+
+  // Form API 引用
+  const [formApi, setFormApi] = useState(null);
+
+  // Form 初始值
+  const formInitValues = {
+    searchKeyword: '',
+    searchGroup: '',
+    searchModel: '',
+  };
+
   // Filter columns based on visibility settings
   const getVisibleColumns = () => {
     return allColumns.filter((column) => visibleColumns[column.key]);
@@ -668,8 +730,6 @@ const ChannelsTable = () => {
             </Button>
           </div>
         }
-        size="middle"
-        centered={true}
       >
         <div style={{ marginBottom: 20 }}>
           <Checkbox
@@ -713,37 +773,6 @@ const ChannelsTable = () => {
       </Modal>
     );
   };
-
-  const [channels, setChannels] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState(1);
-  const [idSort, setIdSort] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchGroup, setSearchGroup] = useState('');
-  const [searchModel, setSearchModel] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
-  const [channelCount, setChannelCount] = useState(pageSize);
-  const [groupOptions, setGroupOptions] = useState([]);
-  const [showEdit, setShowEdit] = useState(false);
-  const [enableBatchDelete, setEnableBatchDelete] = useState(false);
-  const [editingChannel, setEditingChannel] = useState({
-    id: undefined,
-  });
-  const [showEditTag, setShowEditTag] = useState(false);
-  const [editingTag, setEditingTag] = useState('');
-  const [selectedChannels, setSelectedChannels] = useState([]);
-  const [enableTagMode, setEnableTagMode] = useState(false);
-  const [showBatchSetTag, setShowBatchSetTag] = useState(false);
-  const [batchSetTagValue, setBatchSetTagValue] = useState('');
-  const [showModelTestModal, setShowModelTestModal] = useState(false);
-  const [currentTestChannel, setCurrentTestChannel] = useState(null);
-  const [modelSearchKeyword, setModelSearchKeyword] = useState('');
-  const [modelTestResults, setModelTestResults] = useState({});
-  const [testingModels, setTestingModels] = useState(new Set());
-  const [isBatchTesting, setIsBatchTesting] = useState(false);
-  const [testQueue, setTestQueue] = useState([]);
-  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   const removeRecord = (record) => {
     let newDataSource = [...channels];
@@ -896,15 +925,11 @@ const ChannelsTable = () => {
   };
 
   const refresh = async () => {
+    const { searchKeyword, searchGroup, searchModel } = getFormValues();
     if (searchKeyword === '' && searchGroup === '' && searchModel === '') {
       await loadChannels(activePage - 1, pageSize, idSort, enableTagMode);
     } else {
-      await searchChannels(
-        searchKeyword,
-        searchGroup,
-        searchModel,
-        enableTagMode,
-      );
+      await searchChannels(enableTagMode);
     }
   };
 
@@ -1010,29 +1035,40 @@ const ChannelsTable = () => {
     }
   };
 
-  const searchChannels = async (
-    searchKeyword,
-    searchGroup,
-    searchModel,
-    enableTagMode,
-  ) => {
-    if (searchKeyword === '' && searchGroup === '' && searchModel === '') {
-      await loadChannels(activePage - 1, pageSize, idSort, enableTagMode);
-      // setActivePage(1);
-      return;
-    }
+  // 获取表单值的辅助函数，确保所有值都是字符串
+  const getFormValues = () => {
+    const formValues = formApi ? formApi.getValues() : {};
+    return {
+      searchKeyword: formValues.searchKeyword || '',
+      searchGroup: formValues.searchGroup || '',
+      searchModel: formValues.searchModel || '',
+    };
+  };
+
+  const searchChannels = async (enableTagMode) => {
+    const { searchKeyword, searchGroup, searchModel } = getFormValues();
+
     setSearching(true);
-    const res = await API.get(
-      `/api/channel/search?keyword=${searchKeyword}&group=${searchGroup}&model=${searchModel}&id_sort=${idSort}&tag_mode=${enableTagMode}`,
-    );
-    const { success, message, data } = res.data;
-    if (success) {
-      setChannelFormat(data, enableTagMode);
-      setActivePage(1);
-    } else {
-      showError(message);
+    try {
+      if (searchKeyword === '' && searchGroup === '' && searchModel === '') {
+        await loadChannels(activePage - 1, pageSize, idSort, enableTagMode);
+        // setActivePage(1);
+        return;
+      }
+
+      const res = await API.get(
+        `/api/channel/search?keyword=${searchKeyword}&group=${searchGroup}&model=${searchModel}&id_sort=${idSort}&tag_mode=${enableTagMode}`,
+      );
+      const { success, message, data } = res.data;
+      if (success) {
+        setChannelFormat(data, enableTagMode);
+        setActivePage(1);
+      } else {
+        showError(message);
+      }
+    } finally {
+      setSearching(false);
     }
-    setSearching(false);
   };
 
   const updateChannelProperty = (channelId, updateFn) => {
@@ -1553,58 +1589,80 @@ const ChannelsTable = () => {
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto order-1 md:order-2">
-          <div className="relative w-full md:w-64">
-            <Input
-              prefix={<IconSearch />}
-              placeholder={t('搜索渠道的 ID，名称，密钥和API地址 ...')}
-              value={searchKeyword}
-              loading={searching}
-              onChange={(v) => {
-                setSearchKeyword(v.trim());
-              }}
-              className="!rounded-full"
-              showClear
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <Input
-              prefix={<IconFilter />}
-              placeholder={t('模型关键字')}
-              value={searchModel}
-              loading={searching}
-              onChange={(v) => {
-                setSearchModel(v.trim());
-              }}
-              className="!rounded-full"
-              showClear
-            />
-          </div>
-          <div className="w-full md:w-48">
-            <Select
-              placeholder={t('选择分组')}
-              optionList={[
-                { label: t('选择分组'), value: null },
-                ...groupOptions,
-              ]}
-              value={searchGroup}
-              onChange={(v) => {
-                setSearchGroup(v);
-                searchChannels(searchKeyword, v, searchModel, enableTagMode);
-              }}
-              className="!rounded-full w-full"
-              showClear
-            />
-          </div>
-          <Button
-            type="primary"
-            onClick={() => {
-              searchChannels(searchKeyword, searchGroup, searchModel, enableTagMode);
-            }}
-            loading={searching}
-            className="!rounded-full w-full md:w-auto"
+          <Form
+            initValues={formInitValues}
+            getFormApi={(api) => setFormApi(api)}
+            onSubmit={() => searchChannels(enableTagMode)}
+            allowEmpty={true}
+            autoComplete="off"
+            layout="horizontal"
+            trigger="change"
+            stopValidateWithError={false}
+            className="flex flex-col md:flex-row items-center gap-4 w-full"
           >
-            {t('查询')}
-          </Button>
+            <div className="relative w-full md:w-64">
+              <Form.Input
+                field="searchKeyword"
+                prefix={<IconSearch />}
+                placeholder={t('搜索渠道的 ID，名称，密钥和API地址 ...')}
+                className="!rounded-full"
+                showClear
+                pure
+              />
+            </div>
+            <div className="w-full md:w-48">
+              <Form.Input
+                field="searchModel"
+                prefix={<IconSearch />}
+                placeholder={t('模型关键字')}
+                className="!rounded-full"
+                showClear
+                pure
+              />
+            </div>
+            <div className="w-full md:w-48">
+              <Form.Select
+                field="searchGroup"
+                placeholder={t('选择分组')}
+                optionList={[
+                  { label: t('选择分组'), value: null },
+                  ...groupOptions,
+                ]}
+                className="!rounded-full w-full"
+                showClear
+                pure
+                onChange={() => {
+                  // 延迟执行搜索，让表单值先更新
+                  setTimeout(() => {
+                    searchChannels(enableTagMode);
+                  }, 0);
+                }}
+              />
+            </div>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading || searching}
+              className="!rounded-full w-full md:w-auto"
+            >
+              {t('查询')}
+            </Button>
+            <Button
+              theme='light'
+              onClick={() => {
+                if (formApi) {
+                  formApi.reset();
+                  // 重置后立即查询，使用setTimeout确保表单重置完成
+                  setTimeout(() => {
+                    refresh();
+                  }, 100);
+                }
+              }}
+              className="!rounded-full w-full md:w-auto"
+            >
+              {t('重置')}
+            </Button>
+          </Form>
         </div>
       </div>
     </div>
@@ -1662,6 +1720,14 @@ const ChannelsTable = () => {
                 },
               }
               : null
+          }
+          empty={
+            <Empty
+              image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
+              darkModeImage={<IllustrationNoResultDark style={{ width: 150, height: 150 }} />}
+              description={t('搜索无结果')}
+              style={{ padding: 30 }}
+            />
           }
           className="rounded-xl overflow-hidden"
           size="middle"
@@ -1756,7 +1822,6 @@ const ChannelsTable = () => {
           </div>
         }
         maskClosable={!isBatchTesting}
-        centered={true}
         className="!rounded-lg"
         size="large"
       >
@@ -1857,7 +1922,6 @@ const ChannelsTable = () => {
                     key: model
                   }))}
                 pagination={false}
-                size="middle"
               />
             </div>
           )}
