@@ -100,11 +100,6 @@ func getImageToken(info *relaycommon.RelayInfo, imageUrl *dto.MessageImageUrl, m
 		return 3 * baseTokens, nil
 	}
 
-	// 同步One API的图片计费逻辑
-	if imageUrl.Detail == "auto" || imageUrl.Detail == "" {
-		imageUrl.Detail = "high"
-	}
-
 	tileTokens := 170
 	if strings.HasPrefix(model, "gpt-4o-mini") {
 		tileTokens = 5667
