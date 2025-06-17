@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -177,6 +176,7 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 		return
 	}
 	contentList := m.ParseContent()
+	changed := false
 	for i, cItem := range contentList {
 		if cItem.Type == dto.ContentTypeImageURL {
 			if urlValue, ok := cItem.ImageUrl.(*dto.MessageImageUrl); ok {
@@ -191,6 +191,7 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 			}
 		}
 	}
-	newContentBytes, _ := json.Marshal(contentList)
-	m.Content = newContentBytes
+	if changed {
+		m.SetMediaContent(contentList)
+	}
 }
