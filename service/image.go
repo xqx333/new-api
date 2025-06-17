@@ -186,6 +186,7 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 					if err == nil && base64Data != "" {
 						urlValue.Url = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
 						contentList[i].ImageUrl = urlValue
+						m.parsedContent = contentList
 					}
 				}
 			}
