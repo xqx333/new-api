@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -177,6 +176,7 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 		return
 	}
 	contentList := m.ParseContent()
+	changed := false
 	for i, cItem := range contentList {
 		if cItem.Type == dto.ContentTypeImageURL {
 			if urlValue, ok := cItem.ImageUrl.(*dto.MessageImageUrl); ok {
@@ -186,10 +186,13 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 					if err == nil && base64Data != "" {
 						urlValue.Url = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
 						contentList[i].ImageUrl = urlValue
-						m.Content = SetMediaContent(contentList)
+						changed = true
 					}
 				}
 			}
 		}
+	}
+	if changed {
+		m.SetMediaContent(contentList)
 	}
 }
