@@ -112,6 +112,12 @@ func getImageToken(info *relaycommon.RelayInfo, imageUrl *dto.MessageImageUrl, m
 	if info.ChannelType == common.ChannelTypeGemini || info.ChannelType == common.ChannelTypeVertexAi || info.ChannelType == common.ChannelTypeAnthropic {
 		return 3 * baseTokens, nil
 	}
+	
+	//临时添加，当模型以gemini开头时不计算图片大小
+	if strings.HasPrefix(model, "gemini-") {
+		return 3 * baseTokens, nil
+	}
+	
 	//临时添加，当模型以gemini开头时不计算图片大小
 	if strings.HasPrefix(model, "gemini-") {
 		return 3 * baseTokens, nil
