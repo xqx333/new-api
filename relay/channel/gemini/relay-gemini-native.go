@@ -56,6 +56,9 @@ func GeminiTextGenerationHandler(c *gin.Context, resp *http.Response, info *rela
 	}
 
 	usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
+	
+	// 计算最终使用量
+	usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
 
 	for _, detail := range geminiResponse.UsageMetadata.PromptTokensDetails {
 		if detail.Modality == "AUDIO" {
