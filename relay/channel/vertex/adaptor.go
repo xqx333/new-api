@@ -84,7 +84,11 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	if a.RequestMode == RequestModeGemini {
 		if model_setting.GetGeminiSettings().ThinkingAdapterEnabled {
 			// suffix -thinking and -nothinking
-			if strings.HasSuffix(info.OriginModelName, "-thinking") {
+			// 与relay/channel/gemini/adaptor.go 中的逻辑保持一致
+			if strings.Contains(info.OriginModelName, "-thinking-") {
+				parts := strings.Split(info.UpstreamModelName, "-thinking-")
+				info.UpstreamModelName = parts[0]
+			} else if strings.HasSuffix(info.OriginModelName, "-thinking") { // 旧的适配
 				info.UpstreamModelName = strings.TrimSuffix(info.UpstreamModelName, "-thinking")
 			} else if strings.HasSuffix(info.OriginModelName, "-nothinking") {
 				info.UpstreamModelName = strings.TrimSuffix(info.UpstreamModelName, "-nothinking")
