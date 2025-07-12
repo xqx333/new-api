@@ -231,7 +231,9 @@ var defaultModelPrice = map[string]float64{
 	"dall-e-3":                0.04,
 	"imagen-3.0-generate-002": 0.03,
 	"gpt-4-gizmo-*":           0.1,
+	"mj_video":                0.8,
 	"mj_imagine":              0.1,
+	"mj_edits":                0.1,
 	"mj_variation":            0.1,
 	"mj_reroll":               0.1,
 	"mj_blend":                0.1,
@@ -502,16 +504,19 @@ func getHardcodedCompletionModelRatio(name string) (float64, bool) {
 		} else if strings.HasPrefix(name, "gemini-2.0") {
 			return 4, true
 		} else if strings.HasPrefix(name, "gemini-2.5-pro") { // 移除preview来增加兼容性，这里假设正式版的倍率和preview一致
-			return 8, true
+			return 8, false
 		} else if strings.HasPrefix(name, "gemini-2.5-flash") { // 处理不同的flash模型倍率
 			if strings.HasPrefix(name, "gemini-2.5-flash-preview") {
 				if strings.HasSuffix(name, "-nothinking") {
-					return 4, true
+					return 4, false
 				}
-				return 3.5 / 0.15, true
+				return 3.5 / 0.15, false
 			}
-			if strings.HasPrefix(name, "gemini-2.5-flash-lite-preview") {
-				return 4, true
+			if strings.HasPrefix(name, "gemini-2.5-flash-lite") {
+				if strings.HasPrefix(name, "gemini-2.5-flash-lite-preview") {
+					return 4, false
+				}
+				return 4, false
 			}
 			return 2.5 / 0.3, true
 		}

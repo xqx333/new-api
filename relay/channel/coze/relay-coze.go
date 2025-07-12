@@ -48,10 +48,7 @@ func cozeChatHandler(c *gin.Context, resp *http.Response, info *relaycommon.Rela
 	if err != nil {
 		return service.OpenAIErrorWrapper(err, "read_response_body_failed", http.StatusInternalServerError), nil
 	}
-	err = resp.Body.Close()
-	if err != nil {
-		return service.OpenAIErrorWrapperLocal(err, "close_response_body_failed", http.StatusInternalServerError), nil
-	}
+	common.CloseResponseBodyGracefully(resp)
 	// convert coze response to openai response
 	var response dto.TextResponse
 	var cozeResponse CozeChatDetailResponse
@@ -281,8 +278,8 @@ func getChatDetail(a *Adaptor, c *gin.Context, info *relaycommon.RelayInfo) (*ht
 func doRequest(req *http.Request, info *relaycommon.RelayInfo) (*http.Response, error) {
 	var client *http.Client
 	var err error // 声明 err 变量
-	if proxyURL, ok := info.ChannelSetting["proxy"]; ok {
-		client, err = service.NewProxyHttpClient(proxyURL.(string))
+	if info.ChannelSetting.Proxy != "" {
+		client, err = service.NewProxyHttpClient(info.ChannelSetting.Proxy)
 		if err != nil {
 			return nil, fmt.Errorf("new proxy http client failed: %w", err)
 		}
