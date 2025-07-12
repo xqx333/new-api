@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -177,20 +176,23 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 		return
 	}
 	contentList := m.ParseContent()
-	for i, cItem := range contentList {
-		if cItem.Type == dto.ContentTypeImageURL {
-			if urlValue, ok := cItem.ImageUrl.(*dto.MessageImageUrl); ok {
-				if !strings.HasPrefix(urlValue.Url, "data:") &&
-					(strings.HasPrefix(urlValue.Url, "http://") || strings.HasPrefix(urlValue.Url, "https://")) {
-					mimeType, base64Data, err := GetImageFromUrl(urlValue.Url)
-					if err == nil && base64Data != "" {
-						urlValue.Url = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
-						contentList[i].ImageUrl = urlValue
-					}
+	changed := false
+	for i := range contentList {
+		if contentList[i].Type != dto.ContentTypeImageURL {
+			continue
+		}
+	        if urlVal := contentList[i].GetImageMedia(); urlVal != nil {
+			if !strings.HasPrefix(urlVal.Url, "data:") &&
+			(strings.HasPrefix(urlVal.Url, "http://") || strings.HasPrefix(urlVal.Url, "https://")) {
+				if mime, b64, err := GetImageFromUrl(urlVal.Url); err == nil && b64 != "" {
+					urlVal.Url = fmt.Sprintf("data:%s;base64,%s", mime, b64)
+					contentList[i].ImageUrl = urlVal
+					changed = true
 				}
 			}
 		}
 	}
-	newContentBytes, _ := json.Marshal(contentList)
-	m.Content = newContentBytes
+	if changed {
+		m.SetMediaContent(contentList)
+	}
 }
