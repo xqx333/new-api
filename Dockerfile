@@ -2,23 +2,9 @@ FROM oven/bun:latest AS builder
 
 WORKDIR /build
 COPY web/package.json .
-
-
-# ⚠️ 移除 bun.lockb，确保不会缓存旧版本 rollup
-RUN rm -f bun.lockb && bun install
-
-
+RUN bun install
 COPY ./web .
 COPY ./VERSION .
-
-
-
-RUN bun add -d rollup@4.32.1
-
-# ✅ 可选：验证版本（可删除）
-RUN bun x rollup --version
-
-
 RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) bun run build
 
 FROM golang:alpine AS builder2
