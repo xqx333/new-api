@@ -352,7 +352,7 @@ export function renderModelPrice(
   audioInputTokens = 0,
   audioInputPrice = 0,
 ) {
-  const { ratio: effectiveGroupRatio, label: ratioLabel } = getEffectiveRatio(groupRatio, user_group_ratio);
+  const { ratio: effectiveGroupRatio, label: ratioLabel } = getEffectiveRatio(groupRatio, -1);
   groupRatio = effectiveGroupRatio;
   
   if (modelPrice !== -1) {
