@@ -359,6 +359,7 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 	promptTokens := usage.PromptTokens
 	cacheTokens := usage.PromptTokensDetails.CachedTokens
 	imageTokens := usage.PromptTokensDetails.ImageTokens
+	audioTokens := usage.PromptTokensDetails.AudioTokens
 	completionTokens := usage.CompletionTokens
 	modelName := relayInfo.OriginModelName
 
@@ -374,6 +375,7 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 	dPromptTokens := decimal.NewFromInt(int64(promptTokens))
 	dCacheTokens := decimal.NewFromInt(int64(cacheTokens))
 	dImageTokens := decimal.NewFromInt(int64(imageTokens))
+	dAudioTokens := decimal.NewFromInt(int64(audioTokens))
 	dCompletionTokens := decimal.NewFromInt(int64(completionTokens))
 	dCompletionRatio := decimal.NewFromFloat(completionRatio)
 	dCacheRatio := decimal.NewFromFloat(cacheRatio)
