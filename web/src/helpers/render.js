@@ -336,7 +336,6 @@ export function renderModelPrice(
   modelPrice = -1,
   completionRatio,
   groupRatio,
-  user_group_ratio,
   cacheTokens = 0,
   cacheRatio = 1.0,
   image = false,
