@@ -425,16 +425,36 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 	}
 
 	var quotaCalculateDecimal decimal.Decimal
-	if !priceData.UsePrice {
-		nonCachedTokens := dPromptTokens.Sub(dCacheTokens)
-		cachedTokensWithRatio := dCacheTokens.Mul(dCacheRatio)
 
-		promptQuota := nonCachedTokens.Add(cachedTokensWithRatio)
-		if imageTokens > 0 {
-			nonImageTokens := dPromptTokens.Sub(dImageTokens)
-			imageTokensWithRatio := dImageTokens.Mul(dImageRatio)
-			promptQuota = nonImageTokens.Add(imageTokensWithRatio)
+	var audioInputQuota decimal.Decimal
+	var audioInputPrice float64
+	if !priceData.UsePrice {
+		baseTokens := dPromptTokens
+		// 减去 cached tokens
+		var cachedTokensWithRatio decimal.Decimal
+		if !dCacheTokens.IsZero() {
+			baseTokens = baseTokens.Sub(dCacheTokens)
+			cachedTokensWithRatio = dCacheTokens.Mul(dCacheRatio)
 		}
+
+		// 减去 image tokens
+		var imageTokensWithRatio decimal.Decimal
+		if !dImageTokens.IsZero() {
+			baseTokens = baseTokens.Sub(dImageTokens)
+			imageTokensWithRatio = dImageTokens.Mul(dImageRatio)
+		}
+
+		// 减去 Gemini audio tokens
+		if !dAudioTokens.IsZero() {
+			audioInputPrice = operation_setting.GetGeminiInputAudioPricePerMillionTokens(modelName)
+			if audioInputPrice > 0 {
+				// 重新计算 base tokens
+				baseTokens = baseTokens.Sub(dAudioTokens)
+				audioInputQuota = decimal.NewFromFloat(audioInputPrice).Div(decimal.NewFromInt(1000000)).Mul(dAudioTokens).Mul(dGroupRatio).Mul(dQuotaPerUnit)
+				extraContent += fmt.Sprintf("Audio Input 花费 %s", audioInputQuota.String())
+			}
+		}
+		promptQuota := baseTokens.Add(cachedTokensWithRatio).Add(imageTokensWithRatio)
 
 		completionQuota := dCompletionTokens.Mul(dCompletionRatio)
 
@@ -449,6 +469,8 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 	// 添加 responses tools call 调用的配额
 	quotaCalculateDecimal = quotaCalculateDecimal.Add(dWebSearchQuota)
 	quotaCalculateDecimal = quotaCalculateDecimal.Add(dFileSearchQuota)
+	// 添加 audio input 独立计费
+	quotaCalculateDecimal = quotaCalculateDecimal.Add(audioInputQuota)
 
 	quota := int(quotaCalculateDecimal.Round(0).IntPart())
 	totalTokens := promptTokens + completionTokens
