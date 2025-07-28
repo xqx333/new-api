@@ -543,6 +543,11 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 			other["file_search_price"] = fileSearchPrice
 		}
 	}
+	if !audioInputQuota.IsZero() {
+		other["audio_input_seperate_price"] = true
+		other["audio_input_token_count"] = audioTokens
+		other["audio_input_price"] = audioInputPrice
+	}
 	model.RecordConsumeLog(ctx, relayInfo.UserId, relayInfo.ChannelId, promptTokens, completionTokens, logModel,
 		tokenName, quota, logContent, relayInfo.TokenId, userQuota, int(useTimeSeconds), relayInfo.IsStream, relayInfo.Group, other)
 }
