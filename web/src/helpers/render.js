@@ -305,6 +305,30 @@ export function renderQuota(quota, digits = 2) {
   return renderNumber(quota);
 }
 
+function isValidGroupRatio(ratio) {
+  return Number.isFinite(ratio) && ratio !== -1;
+}
+
+/**
+ * Helper function to get effective ratio and label
+ * @param {number} groupRatio - The default group ratio
+ * @param {number} user_group_ratio - The user-specific group ratio  
+ * @returns {Object} - Object containing { ratio, label, useUserGroupRatio }
+ */
+function getEffectiveRatio(groupRatio, user_group_ratio) {
+  const useUserGroupRatio = isValidGroupRatio(user_group_ratio);
+  const ratioLabel = useUserGroupRatio
+    ? i18next.t('专属倍率')
+    : i18next.t('分组倍率');
+  const effectiveRatio = useUserGroupRatio ? user_group_ratio : groupRatio;
+
+  return {
+    ratio: effectiveRatio,
+    label: ratioLabel,
+    useUserGroupRatio: useUserGroupRatio
+  };
+}
+
 export function renderModelPrice(
   inputTokens,
   completionTokens,
@@ -327,6 +351,9 @@ export function renderModelPrice(
   audioInputTokens = 0,
   audioInputPrice = 0,
 ) {
+  const { ratio: effectiveGroupRatio, label: ratioLabel } = getEffectiveRatio(groupRatio, user_group_ratio);
+  groupRatio = effectiveGroupRatio;
+  
   if (modelPrice !== -1) {
     return i18next.t(
       '模型价格：${{price}} * 分组倍率：{{ratio}} = ${{total}}',
