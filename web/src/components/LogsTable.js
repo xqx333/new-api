@@ -1007,6 +1007,9 @@ const LogsTable = () => {
             other?.file_search || false,
             other?.file_search_call_count || 0,
             other?.file_search_price || 0,
+            other?.audio_input_seperate_price || false,
+            other?.audio_input_token_count || 0,
+            other?.audio_input_price || 0,
           );
         }
         expandDataLocal.push({
