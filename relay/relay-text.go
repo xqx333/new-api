@@ -128,6 +128,7 @@ func TextHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 		// promptTokens, err = getPromptTokens(textRequest, relayInfo)
 		// 跳过原有计费逻辑直接使用上游usage
 		promptTokens, err = 10000, nil
+		relayInfo.PromptTokens = promptTokens
 		// count messages token error 计算promptTokens错误
 		if err != nil {
 			return service.OpenAIErrorWrapper(err, "count_token_messages_failed", http.StatusInternalServerError)
