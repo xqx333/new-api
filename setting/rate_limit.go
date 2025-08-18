@@ -16,21 +16,32 @@ var ModelRequestRateLimitMutex sync.RWMutex
 
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()
-	defer ModelRequestRateLimitMutex.RUnlock()
+    // 拷贝一份，缩短持锁时间
+    snapshot := make(map[string][2]int, len(ModelRequestRateLimitGroup))
+    for k, v := range ModelRequestRateLimitGroup {
+        snapshot[k] = v
+    }
+    ModelRequestRateLimitMutex.RUnlock()
 
-	jsonBytes, err := json.Marshal(ModelRequestRateLimitGroup)
-	if err != nil {
-		common.SysError("error marshalling model ratio: " + err.Error())
-	}
-	return string(jsonBytes)
+    jsonBytes, err := json.Marshal(snapshot)
+    if err != nil {
+        common.SysError("error marshalling model ratio: " + err.Error())
+    }
+    return string(jsonBytes)
 }
 
 func UpdateModelRequestRateLimitGroupByJSONString(jsonStr string) error {
-	ModelRequestRateLimitMutex.RLock()
-	defer ModelRequestRateLimitMutex.RUnlock()
-
-	ModelRequestRateLimitGroup = make(map[string][2]int)
-	return json.Unmarshal([]byte(jsonStr), &ModelRequestRateLimitGroup)
+	// 先在局部变量里解析，避免半更新
+    tmp := make(map[string][2]int)
+    if err := json.Unmarshal([]byte(jsonStr), &tmp); err != nil {
+        return err
+    }
+	
+	// 成功后再一次性替换，使用写锁
+    ModelRequestRateLimitMutex.Lock()
+    ModelRequestRateLimitGroup = tmp
+    ModelRequestRateLimitMutex.Unlock()
+    return nil
 }
 
 func GetGroupRateLimit(group string) (totalCount, successCount int, found bool) {
