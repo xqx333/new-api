@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type stringWriter interface {
@@ -52,6 +53,7 @@ type CustomEvent struct {
 	Id    string
 	Retry uint
 	Data  interface{}
+	Mutex sync.Mutex
 }
 
 func encode(writer io.Writer, event CustomEvent) error {
@@ -73,6 +75,8 @@ func (r CustomEvent) Render(w http.ResponseWriter) error {
 }
 
 func (r CustomEvent) WriteContentType(w http.ResponseWriter) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 	header := w.Header()
 	header["Content-Type"] = contentType
 
