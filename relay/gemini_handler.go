@@ -60,6 +60,9 @@ func checkGeminiInputSensitive(textRequest *gemini.GeminiChatRequest) ([]string,
 }
 
 func getGeminiInputTokens(req *gemini.GeminiChatRequest, info *relaycommon.RelayInfo) int {
+	if info.ChannelType == common.ChannelTypeGemini || info.ChannelType == common.ChannelTypeVertexAi{
+		return  1000
+	}
 	// 计算输入 token 数量
 	var inputTexts []string
 	for _, content := range req.Contents {
