@@ -156,7 +156,7 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if strings.HasPrefix(request.Model, "deepseek") && request.MaxTokens > deepseekMaxTokens {
 		request.MaxTokens = 0
 	}
-	if strings.HasPrefix(request.Model, "o") || strings.HasPrefix(request.Model, "gpt-5") && !strings.HasPrefix(request.Model, "gpt-5-chat") {{
+	if strings.HasPrefix(request.Model, "o") || strings.HasPrefix(request.Model, "gpt-5") && !strings.HasPrefix(request.Model, "gpt-5-chat") {
 		if request.MaxCompletionTokens == 0 && request.MaxTokens != 0 {
 			request.MaxCompletionTokens = request.MaxTokens
 			request.MaxTokens = 0
