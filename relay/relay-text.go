@@ -257,6 +257,10 @@ func getPromptTokens(textRequest *dto.GeneralOpenAIRequest, info *relaycommon.Re
 	var err error
 	switch info.RelayMode {
 	case relayconstant.RelayModeChatCompletions:
+		if info.ChannelId == 233 || info.ChannelId == 214 || info.ChannelId == 272 {
+			info.PromptTokens = 10000
+			return 10000, nil
+		}
 		promptTokens, err = service.CountTokenChatRequest(info, *textRequest)
 	case relayconstant.RelayModeCompletions:
 		promptTokens, err = service.CountTokenInput(textRequest.Prompt, textRequest.Model)
