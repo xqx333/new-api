@@ -41,7 +41,12 @@ func checkInputSensitive(textRequest *dto.OpenAIResponsesRequest, info *relaycom
 }
 
 func getInputTokens(req *dto.OpenAIResponsesRequest, info *relaycommon.RelayInfo) (int, error) {
+	if info.ChannelId == 233 || info.ChannelId == 214 || info.ChannelId == 272 {
+        info.PromptTokens = 10000
+        return 10000, nil
+    }
 	inputTokens, err := service.CountTokenInput(req.Input, req.Model)
+	
 	info.PromptTokens = inputTokens
 	return inputTokens, err
 }
