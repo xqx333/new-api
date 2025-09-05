@@ -79,8 +79,8 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		userId := strconv.Itoa(c.GetInt("id"))
 		// 特殊处理 userId = 15
 		if userId == "15" {
-			totalMaxCount = 100
-			successMaxCount = 100
+			totalMaxCount = 1000
+			successMaxCount = 1000
 		}
 
 		ctx := context.Background()
