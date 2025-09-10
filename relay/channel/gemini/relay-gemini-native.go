@@ -1,7 +1,6 @@
 package gemini
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"one-api/common"
