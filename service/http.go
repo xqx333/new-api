@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"one-api/common"
-	"one-api/logger"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,6 +53,6 @@ func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 
 	_, err := io.Copy(c.Writer, body)
 	if err != nil {
-		logger.LogError(c, fmt.Sprintf("failed to copy response body: %s", err.Error()))
+		common.LogError(c, fmt.Sprintf("failed to copy response body: %s", err.Error()))
 	}
 }
