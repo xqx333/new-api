@@ -15,6 +15,8 @@ import (
 )
 
 func GeminiTextGenerationHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *dto.OpenAIErrorWithStatusCode) {
+	defer service.CloseResponseBodyGracefully(resp)
+	
 	// 读取响应体
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -53,20 +55,8 @@ func GeminiTextGenerationHandler(c *gin.Context, resp *http.Response, info *rela
 		}
 	}
 
-	// 直接返回 Gemini 原生格式的 JSON 响应
-	jsonResponse, err := json.Marshal(geminiResponse)
-	if err != nil {
-		return nil, service.OpenAIErrorWrapper(err, "marshal_response_body_failed", http.StatusInternalServerError)
-	}
-
-	// 设置响应头并写入响应
-	c.Writer.Header().Set("Content-Type", "application/json")
-	c.Writer.WriteHeader(resp.StatusCode)
-	_, err = c.Writer.Write(jsonResponse)
-	if err != nil {
-		return nil, service.OpenAIErrorWrapper(err, "write_response_failed", http.StatusInternalServerError)
-	}
-
+	service.IOCopyBytesGracefully(c, resp, responseBody)
+	
 	return &usage, nil
 }
 
