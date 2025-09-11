@@ -185,9 +185,9 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 		successMaxCount := setting.ModelRequestRateLimitSuccessCount
 
 		// 获取分组
-		group = c.GetString(constant.ContextKeyUserGroup)
+		group := c.GetString(constant.ContextKeyUserGroup)
 		if group == "" {
-			group := c.GetString("token_group")
+			group = c.GetString("token_group")
 		}
 
 		//获取分组的限流配置
