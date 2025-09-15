@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"one-api/common"
-	"one-api/setting"
+	"one-api/setting/system_setting"
 	"strings"
 	"time"
 )
@@ -22,14 +22,14 @@ type WorkerRequest struct {
 
 // DoWorkerRequest 通过Worker发送请求
 func DoWorkerRequest(req *WorkerRequest) (*http.Response, error) {
-	if !setting.EnableWorker() {
+	if !system_setting.EnableWorker() {
 		return nil, fmt.Errorf("worker not enabled")
 	}
-	if !setting.WorkerAllowHttpImageRequestEnabled && !strings.HasPrefix(req.URL, "https") {
+	if !system_setting.WorkerAllowHttpImageRequestEnabled && !strings.HasPrefix(req.URL, "https") {
 		return nil, fmt.Errorf("only support https url")
 	}
 
-	workerUrl := setting.WorkerUrl
+	workerUrl := system_setting.WorkerUrl
 	if !strings.HasSuffix(workerUrl, "/") {
 		workerUrl += "/"
 	}
@@ -44,7 +44,7 @@ func DoWorkerRequest(req *WorkerRequest) (*http.Response, error) {
 }
 
 
-func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
+func DoDownloadRequest(originUrl string, reason ...string) (resp *http.Response, err error) {
 	requestTimeout := common.RequestTimeout
 
 	client := &http.Client{}
@@ -52,15 +52,15 @@ func DoDownloadRequest(originUrl string) (resp *http.Response, err error) {
 		client.Timeout = time.Duration(requestTimeout) * time.Second
 	}
 
-	if setting.EnableWorker() {
-		common.SysLog(fmt.Sprintf("downloading file from worker: %s", originUrl))
+	if system_setting.EnableWorker() {
+		common.SysLog(fmt.Sprintf("downloading file from worker: %s, reason: %s", originUrl, strings.Join(reason, ", ")))
 		req := &WorkerRequest{
 			URL: originUrl,
-			Key: setting.WorkerValidKey,
+			Key: system_setting.WorkerValidKey,
 		}
 		return DoWorkerRequest(req)
 	} else {
-		common.SysLog(fmt.Sprintf("downloading from origin: %s", originUrl))
+		common.SysLog(fmt.Sprintf("downloading from origin with worker: %s, reason: %s", originUrl, strings.Join(reason, ", ")))
 		req, err := http.NewRequest("GET", originUrl, nil)
 		if err != nil {
 			return nil, err
