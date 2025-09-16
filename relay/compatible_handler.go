@@ -32,6 +32,14 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected dto.GeneralOpenAIRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
+	// 如果启用了图片转base64功能，则将消息中的图片URL转换为base64
+	// textReq请求体的指针，所以这里直接修改即可，不用担心重试会重复转换，会跳过网络请求，直接复用已转换的内容
+	if common.ImageToBase64Enabled {
+		for i := range textReq.Messages {
+			service.ConvertImageUrlsToBase64(&textReq.Messages[i])
+		}
+	}
+
 	request, err := common.DeepCopy(textReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to GeneralOpenAIRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
