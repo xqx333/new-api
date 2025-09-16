@@ -845,13 +845,17 @@ func GeminiChatStreamHandler(c *gin.Context, resp *http.Response, info *relaycom
 
 	var response *dto.ChatCompletionsStreamResponse
 
-	usage.PromptTokensDetails.TextTokens = usage.PromptTokens
-	usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
-
 	if imageCount != 0 {
 		if usage.CompletionTokens == 0 {
 			usage.CompletionTokens = imageCount * 258
 		}
+	}
+
+	if usage.PromptTokensDetails.TextTokens == 0 && usage.PromptTokensDetails.AudioTokens == 0 && usage.PromptTokensDetails.ImageTokens == 0 {
+		usage.PromptTokensDetails.TextTokens = usage.PromptTokens
+	}
+	if usage.TotalTokens > 0 && usage.CompletionTokens == 0 && usage.TotalTokens >= usage.PromptTokens {
+		usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
 	}
 
 	if info.ShouldIncludeUsage {
@@ -903,7 +907,9 @@ func GeminiChatHandler(c *gin.Context, resp *http.Response, info *relaycommon.Re
 	}
 
 	usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
-	usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
+	if usage.TotalTokens > 0 && usage.CompletionTokens == 0 && usage.TotalTokens >= usage.PromptTokens {
+		usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
+	}
 
 	for _, detail := range geminiResponse.UsageMetadata.PromptTokensDetails {
 		if detail.Modality == "AUDIO" {
