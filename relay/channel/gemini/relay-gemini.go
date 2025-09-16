@@ -820,8 +820,8 @@ func GeminiChatStreamHandler(c *gin.Context, resp *http.Response, info *relaycom
 		response.Created = createAt
 		response.Model = info.UpstreamModelName
 		if geminiResponse.UsageMetadata.TotalTokenCount != 0 {
-			usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
-			usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount
+			usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount + geminiResponse.UsageMetadata.ToolUsePromptTokenCount
+			usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
 			usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
 			usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
 			for _, detail := range geminiResponse.UsageMetadata.PromptTokensDetails {
@@ -845,14 +845,14 @@ func GeminiChatStreamHandler(c *gin.Context, resp *http.Response, info *relaycom
 
 	var response *dto.ChatCompletionsStreamResponse
 
+	usage.PromptTokensDetails.TextTokens = usage.PromptTokens
+	usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
+
 	if imageCount != 0 {
 		if usage.CompletionTokens == 0 {
 			usage.CompletionTokens = imageCount * 258
 		}
 	}
-
-	usage.PromptTokensDetails.TextTokens = usage.PromptTokens
-	usage.CompletionTokens = usage.TotalTokens - usage.PromptTokens
 
 	if info.ShouldIncludeUsage {
 		response = helper.GenerateFinalUsageResponse(id, createAt, info.UpstreamModelName, *usage)
@@ -897,8 +897,8 @@ func GeminiChatHandler(c *gin.Context, resp *http.Response, info *relaycommon.Re
 	fullTextResponse := responseGeminiChat2OpenAI(c, &geminiResponse)
 	fullTextResponse.Model = info.UpstreamModelName
 	usage := dto.Usage{
-		PromptTokens:     geminiResponse.UsageMetadata.PromptTokenCount,
-		CompletionTokens: geminiResponse.UsageMetadata.CandidatesTokenCount,
+		PromptTokens:     geminiResponse.UsageMetadata.PromptTokenCount + geminiResponse.UsageMetadata.ToolUsePromptTokenCount,
+		CompletionTokens: geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount,
 		TotalTokens:      geminiResponse.UsageMetadata.TotalTokenCount,
 	}
 
