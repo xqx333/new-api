@@ -39,7 +39,7 @@ func GeminiTextGenerationHandler(c *gin.Context, resp *http.Response, info *rela
 
 	// 计算使用量（基于 UsageMetadata）
 	usage := dto.Usage{
-		PromptTokens:     geminiResponse.UsageMetadata.TotalTokenCount - geminiResponse.UsageMetadata.CandidatesTokenCount - geminiResponse.UsageMetadata.ThoughtsTokenCount,
+		PromptTokens:     geminiResponse.UsageMetadata.PromptTokenCount + geminiResponse.UsageMetadata.ToolUsePromptTokenCount,
 		CompletionTokens: geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount,
 		TotalTokens:      geminiResponse.UsageMetadata.TotalTokenCount,
 	}
@@ -89,7 +89,7 @@ func GeminiTextGenerationStreamHandler(c *gin.Context, resp *http.Response, info
 
 		// 更新使用量统计
 		if geminiResponse.UsageMetadata.TotalTokenCount != 0 {
-			usage.PromptTokens = geminiResponse.UsageMetadata.TotalTokenCount - geminiResponse.UsageMetadata.CandidatesTokenCount - geminiResponse.UsageMetadata.ThoughtsTokenCount
+			usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount + geminiResponse.UsageMetadata.ToolUsePromptTokenCount
 			usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
 			usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
 			usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
