@@ -189,6 +189,7 @@ func ConvertImageUrlsToBase64(m *dto.Message) {
 			if !strings.HasPrefix(urlVal.Url, "data:") &&
 			(strings.HasPrefix(urlVal.Url, "http://") || strings.HasPrefix(urlVal.Url, "https://")) {
 				if mime, b64, err := GetImageFromUrl(urlVal.Url); err == nil && b64 != "" {
+					urlVal.MimeType = mime
 					urlVal.Url = fmt.Sprintf("data:%s;base64,%s", mime, b64)
 					contentList[i].ImageUrl = urlVal
 					changed = true
