@@ -167,11 +167,12 @@ type GeminiChatResponse struct {
 }
 
 type GeminiUsageMetadata struct {
-	PromptTokenCount     int                         `json:"promptTokenCount"`
-	CandidatesTokenCount int                         `json:"candidatesTokenCount"`
-	TotalTokenCount      int                         `json:"totalTokenCount"`
-	ThoughtsTokenCount   int                         `json:"thoughtsTokenCount"`
-	PromptTokensDetails  []GeminiPromptTokensDetails `json:"promptTokensDetails"`
+	PromptTokenCount      int                         `json:"promptTokenCount"`
+	CandidatesTokenCount  int                         `json:"candidatesTokenCount"`
+	TotalTokenCount       int                         `json:"totalTokenCount"`
+	ThoughtsTokenCount    int                         `json:"thoughtsTokenCount"`
+	PromptTokensDetails   []GeminiPromptTokensDetails `json:"promptTokensDetails"`
+	ToolUsePromptTokenCount int                      `json:"toolUsePromptTokenCount"`
 }
 
 type GeminiPromptTokensDetails struct {
