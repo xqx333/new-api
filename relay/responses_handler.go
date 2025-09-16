@@ -25,6 +25,12 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected dto.OpenAIResponsesRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
+	// 如果启用了图片转base64功能，则将消息中的图片URL转换为base64
+	// responsesReq请求体的指针，所以这里直接修改即可，不用担心重试会重复转换，会跳过网络请求，直接复用已转换的内容
+	if common.ImageToBase64Enabled {
+		service.ConvertResponsesImageUrlsToBase64(responsesReq)
+	}
+
 	request, err := common.DeepCopy(responsesReq)
 	if err != nil {
 		return types.NewError(fmt.Errorf("failed to copy request to GeneralOpenAIRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
@@ -103,3 +109,4 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 	}
 	return nil
 }
+

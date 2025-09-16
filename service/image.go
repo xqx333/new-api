@@ -175,6 +175,79 @@ func getImageConfig(reader io.Reader) (image.Config, string, error) {
 	return config, format, nil
 }
 
+func ConvertResponsesImageUrlsToBase64(r *dto.OpenAIResponsesRequest) {
+	if r == nil || len(r.Input) == 0 {
+		return
+	}
+
+	typeVal := common.GetJsonType(r.Input)
+	if typeVal != "array" {
+		return
+	}
+
+	var inputs []any
+	if err := common.Unmarshal(r.Input, &inputs); err != nil {
+		return
+	}
+
+	changed := false
+	for i := range inputs {
+		item, ok := inputs[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		typeField, _ := item["type"].(string)
+		if typeField != "input_image" {
+			continue
+		}
+
+		imageValue, exists := item["image_url"]
+		if !exists {
+			continue
+		}
+
+		var url string
+		switch v := imageValue.(type) {
+		case string:
+			url = v
+		case map[string]any:
+			if s, ok := v["url"].(string); ok {
+				url = s
+			}
+		default:
+			continue
+		}
+
+		if url == "" || strings.HasPrefix(url, "data:") || !(strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+			continue
+		}
+
+		mime, b64, err := GetImageFromUrl(url)
+		if err != nil || b64 == "" {
+			continue
+		}
+
+		dataURL := fmt.Sprintf("data:%s;base64,%s", mime, b64)
+
+		switch v := imageValue.(type) {
+		case string:
+			item["image_url"] = dataURL
+		case map[string]any:
+			v["url"] = dataURL
+			v["mime_type"] = mime
+			item["image_url"] = v
+		}
+
+		changed = true
+	}
+
+	if changed {
+		if data, err := common.Marshal(inputs); err == nil {
+			r.Input = data
+		}
+	}
+}
+
 func ConvertImageUrlsToBase64(m *dto.Message) {
 	if m.IsStringContent() {
 		return
