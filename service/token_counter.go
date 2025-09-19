@@ -13,8 +13,10 @@ import (
 	"one-api/common"
 	"one-api/constant"
 	"one-api/dto"
+	"os"
 	relaycommon "one-api/relay/common"
 	"one-api/types"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -32,6 +34,34 @@ var tokenEncoderMap = make(map[string]tokenizer.Codec)
 
 // tokenEncoderMutex protects tokenEncoderMap for concurrent access
 var tokenEncoderMutex sync.RWMutex
+
+var skipTokenChannelIDs = make(map[int]struct{})
+
+func init() {
+	loadSkipTokenChannelIDs()
+}
+
+func loadSkipTokenChannelIDs() {
+	raw := strings.TrimSpace(os.Getenv("SKIP_TOKEN_CHANNEL_IDS"))
+	if raw == "" {
+		return
+	}
+
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		id, err := strconv.Atoi(part)
+		if err != nil {
+			log.Printf("invalid channel id in SKIP_TOKEN_CHANNEL_IDS: %s", part)
+			continue
+		}
+
+		skipTokenChannelIDs[id] = struct{}{}
+	}
+}
 
 func InitTokenEncoders() {
 	common.SysLog("initializing token encoders")
@@ -253,6 +283,11 @@ func getImageToken(fileMeta *types.FileMeta, model string, stream bool) (int, er
 }
 
 func CountRequestToken(c *gin.Context, meta *types.TokenCountMeta, info *relaycommon.RelayInfo) (int, error) {
+	channelID := common.GetContextKeyInt(c, constant.ContextKeyChannelId)
+	if _, skip := skipTokenChannelIDs[channelID]; skip {
+		common.SetContextKey(c, constant.ContextKeyPromptTokens, 2000)
+		return 2000, nil
+	}
 	if !constant.GetMediaToken {
 		return 0, nil
 	}
