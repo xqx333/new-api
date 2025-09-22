@@ -77,8 +77,8 @@ func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxC
 func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userId := strconv.Itoa(c.GetInt("id"))
-		// 特殊处理 userId = 15
-		// if userId == "15" {
+		// 特殊处理 userId = 999
+		// if userId == "999" {
 		// 	totalMaxCount = 100
 		// 	successMaxCount = 100
 		// }
@@ -185,9 +185,11 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 		successMaxCount := setting.ModelRequestRateLimitSuccessCount
 
 		// 获取分组
-		group := c.GetString(constant.ContextKeyUserGroup)
+		// group := c.GetString(constant.ContextKeyUserGroup)
+		group := c.GetString("token_group")
 		if group == "" {
-			group = c.GetString("token_group")
+			// group = c.GetString("token_group")
+			group = c.GetString("constant.ContextKeyUserGroup")
 		}
 
 		//获取分组的限流配置
