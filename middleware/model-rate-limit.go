@@ -189,7 +189,7 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 		group := c.GetString("token_group")
 		if group == "" {
 			// group = c.GetString("token_group")
-			group = c.GetString("constant.ContextKeyUserGroup")
+			group = c.GetString(constant.ContextKeyUserGroup)
 		}
 
 		//获取分组的限流配置
