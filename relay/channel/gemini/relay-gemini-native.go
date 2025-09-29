@@ -46,6 +46,10 @@ func GeminiTextGenerationHandler(c *gin.Context, resp *http.Response, info *rela
 
 	usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
 
+	if usage.PromptTokens == 0 && usage.TotalTokens != 0 {
+		usage.PromptTokens = usage.TotalTokens - usage.CompletionTokens
+	}
+
 	for _, detail := range geminiResponse.UsageMetadata.PromptTokensDetails {
 		if detail.Modality == "AUDIO" {
 			usage.PromptTokensDetails.AudioTokens = detail.TokenCount
@@ -93,6 +97,11 @@ func GeminiTextGenerationStreamHandler(c *gin.Context, resp *http.Response, info
 			usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount + geminiResponse.UsageMetadata.ThoughtsTokenCount
 			usage.TotalTokens = geminiResponse.UsageMetadata.TotalTokenCount
 			usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
+			
+			if usage.PromptTokens == 0 && usage.TotalTokens != 0 {
+				usage.PromptTokens = usage.TotalTokens - usage.CompletionTokens
+			}
+
 			for _, detail := range geminiResponse.UsageMetadata.PromptTokensDetails {
 				if detail.Modality == "AUDIO" {
 					usage.PromptTokensDetails.AudioTokens = detail.TokenCount
