@@ -144,6 +144,7 @@ func GeminiTextGenerationStreamHandler(c *gin.Context, resp *http.Response, info
 				if len(inputTexts) > 0 {
 					inputText := strings.Join(inputTexts, "\n")
 					usage.PromptTokens = service.CountTokenInput(inputText, info.UpstreamModelName)
+					usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 					if common.DebugEnabled {
 						common.LogInfo(c, fmt.Sprintf("fallback calculated PromptTokens: %d", usage.PromptTokens))
 					}
