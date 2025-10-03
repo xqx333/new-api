@@ -155,7 +155,6 @@ func GeminiTextGenerationStreamHandler(c *gin.Context, resp *http.Response, info
 	
 	// 如果usage.CompletionTokens为0，则使用本地统计的completion tokens
 	if usage.CompletionTokens == 0 {
-		str := responseText.String()
 		usage = service.ResponseText2Usage(responseText.String(), info.UpstreamModelName, usage.PromptTokens)
 	}
 	// 移除流式响应结尾的[Done]，因为Gemini API没有发送Done的行为
