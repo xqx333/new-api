@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"one-api/common"
@@ -126,15 +127,36 @@ func GeminiTextGenerationStreamHandler(c *gin.Context, resp *http.Response, info
 		}
 	}
 
+	// 保底计算：如果 PromptTokens 为 0，尝试从原始请求重新计算
+	// 确保计费准确性
+	if usage.PromptTokens == 0 {
+		if reqInterface, exists := c.Get("gemini_request"); exists {
+			if geminiReq, ok := reqInterface.(*GeminiChatRequest); ok {
+				// 计算真实的输入 tokens
+				var inputTexts []string
+				for _, content := range geminiReq.Contents {
+					for _, part := range content.Parts {
+						if part.Text != "" {
+							inputTexts = append(inputTexts, part.Text)
+						}
+					}
+				}
+				if len(inputTexts) > 0 {
+					inputText := strings.Join(inputTexts, "\n")
+					usage.PromptTokens = service.CountTokenInput(inputText, info.UpstreamModelName)
+					if common.DebugEnabled {
+						common.LogInfo(c, fmt.Sprintf("fallback calculated PromptTokens: %d", usage.PromptTokens))
+					}
+				}
+			}
+		}
+	}
+
+	
 	// 如果usage.CompletionTokens为0，则使用本地统计的completion tokens
 	if usage.CompletionTokens == 0 {
 		str := responseText.String()
-		if len(str) > 0 {
-			usage = service.ResponseText2Usage(responseText.String(), info.UpstreamModelName, info.PromptTokens)
-		} else {
-			// 空补全，不需要使用量
-			usage = &dto.Usage{}
-		}
+		usage = service.ResponseText2Usage(responseText.String(), info.UpstreamModelName, usage.PromptTokens)
 	}
 	// 移除流式响应结尾的[Done]，因为Gemini API没有发送Done的行为
 	//helper.Done(c)
