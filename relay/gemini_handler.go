@@ -86,6 +86,9 @@ func GeminiHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 		return service.OpenAIErrorWrapperLocal(err, "invalid_gemini_request", http.StatusBadRequest)
 	}
 
+	// 保存请求对象到 context，供后续使用（如流式处理结束时的保底计算）
+	c.Set("gemini_request", req)
+
 	relayInfo := relaycommon.GenRelayInfoGemini(c)
 
 	// 检查 Gemini 流式模式
@@ -114,6 +117,7 @@ func GeminiHelper(c *gin.Context) (openaiErr *dto.OpenAIErrorWithStatusCode) {
 			return service.OpenAIErrorWrapperLocal(err, "count_input_tokens_error", http.StatusBadRequest)
 		}
 		c.Set("prompt_tokens", promptTokens)
+		relayInfo.SetPromptTokens(promptTokens)
 	}
 
 	priceData, err := helper.ModelPriceHelper(c, relayInfo, relayInfo.PromptTokens, int(req.GenerationConfig.MaxOutputTokens))
