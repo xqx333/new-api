@@ -35,7 +35,7 @@ func Distribute() func(c *gin.Context) {
 		}
 		var channel *model.Channel
 		channelId, ok := c.Get("specific_channel_id")
-		modelRequest, shouldSelectChannel, err := getModelRequest(c)
+		modelRequest, shouldSelectChannel, err := GetModelRequest(c)
 		if err != nil {
 			abortWithOpenAiMessage(c, http.StatusBadRequest, "Invalid request, "+err.Error())
 			return
@@ -127,7 +127,7 @@ func Distribute() func(c *gin.Context) {
 	}
 }
 
-func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
+func GetModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 	var modelRequest ModelRequest
 	shouldSelectChannel := true
 	var err error

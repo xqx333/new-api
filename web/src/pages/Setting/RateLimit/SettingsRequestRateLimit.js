@@ -20,6 +20,7 @@ export default function RequestRateLimit(props) {
     ModelRequestRateLimitSuccessCount: 1000,
     ModelRequestRateLimitDurationMinutes: 1,
     ModelRequestRateLimitGroup: '',
+    ModelRequestRateLimitModel: '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -187,6 +188,42 @@ export default function RequestRateLimit(props) {
                   }
                   onChange={(value) => {
                     setInputs({ ...inputs, ModelRequestRateLimitGroup: value });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('模型速率限制')}
+                  placeholder={t(
+                    '{\n  "gpt-4": [100, 50],\n  "claude-3-opus": [50, 30]\n}',
+                  )}
+                  field={'ModelRequestRateLimitModel'}
+                autosize={{ minRows: 5, maxRows: 15 }}
+                trigger='blur'
+                        stopValidateWithError
+                rules={[
+                  {
+                  validator: (rule, value) => verifyJSON(value),
+                  message: t('不是合法的 JSON 字符串'),
+                  },
+                ]}
+                  extraText={
+                    <div>
+                      <p style={{ marginBottom: -15 }}>{t('说明：')}</p>
+                      <ul>
+                        <li>{t('使用 JSON 对象格式，格式为：{"模型名": [最多请求次数, 最多请求完成次数]}')}</li>
+                      <li>{t('示例：{"gpt-4": [100, 50], "claude-3-opus": [50, 30]}。')}</li>
+                      <li>{t('[最多请求次数]必须大于等于0，[最多请求完成次数]必须大于等于1。')}</li>
+                        <li>{t('模型速率配置优先级高于分组和全局速率限制。')}</li>
+                        <li>{t('当同时配置分组和模型限流时，取最严格的限制（即最小值）。')}</li>
+                        <li>{t('限制周期统一使用上方配置的"限制周期"值。')}</li>
+                      </ul>
+                    </div>
+                  }
+                  onChange={(value) => {
+                    setInputs({ ...inputs, ModelRequestRateLimitModel: value });
                   }}
                 />
               </Col>

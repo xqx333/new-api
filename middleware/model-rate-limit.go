@@ -199,6 +199,39 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 			successMaxCount = groupSuccessCount
 		}
 
+		// 检查是否有模型限流配置，只有配置了才需要获取模型信息
+		setting.ModelRequestRateLimitMutex.RLock()
+		hasModelRateLimit := len(setting.ModelRequestRateLimitModel) > 0
+		setting.ModelRequestRateLimitMutex.RUnlock()
+		
+		// 如果配置了模型限流，获取模型并应用限流配置
+		if hasModelRateLimit {
+			var model string
+			modelRequest, _, err := GetModelRequest(c)
+			if err == nil && modelRequest != nil && modelRequest.Model != "" {
+				model = modelRequest.Model
+			}
+			
+			// 如果有该模型的限流配置，应用（取最严格的限制）
+			if model != "" {
+				modelTotalCount, modelSuccessCount, modelFound := setting.GetModelRateLimit(model)
+				if modelFound {
+					if found {
+						// 策略：取最严格的限制（即最小值）
+						if modelTotalCount < groupTotalCount {
+							totalMaxCount = modelTotalCount
+						}
+						if modelSuccessCount < groupSuccessCount {
+							successMaxCount = modelSuccessCount
+						}
+					} else {
+						totalMaxCount = modelTotalCount
+						successMaxCount = modelSuccessCount
+					}
+				}
+			}
+		}
+
 		// 根据存储类型选择并执行限流处理器
 		if common.RedisEnabled {
 			redisRateLimitHandler(duration, totalMaxCount, successMaxCount)(c)
