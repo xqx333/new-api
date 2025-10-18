@@ -96,6 +96,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 			return
 		}
 		if !allowed {
+			// abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到请求数限制：%d分钟内最多请求%d次", setting.ModelRequestRateLimitDurationMinutes, successMaxCount))
 			abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("当前分组上游负载已饱和，请稍后再试"))
 			return
 		}
@@ -103,6 +104,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 		// 2. 检查用户总请求数限制（当totalMaxCount为0时会自动跳过，使用令牌桶限流器）
 		if totalMaxCount > 0 {
 			totalKey := fmt.Sprintf("rateLimit:%s", userId)
+			// 初始化
 			tb := limiter.New(ctx, rdb)
 			allowed, err = tb.Allow(
 				ctx,
@@ -119,6 +121,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 			}
 
 			if !allowed {
+				// abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到总请求数限制：%d分钟内最多请求%d次，包括失败次数，请检查您的请求是否正确", setting.ModelRequestRateLimitDurationMinutes, totalMaxCount))
 				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("当前分组上游负载已饱和，请稍后再试"))
 				return
 			}
