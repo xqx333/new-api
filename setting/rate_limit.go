@@ -131,8 +131,12 @@ func CheckModelRequestRateLimitModel(jsonStr string) error {
 		return err
 	}
 	for model, limits := range checkModelRequestRateLimitModel {
-		if limits[0] < 0 || limits[1] < 1 {
-			return fmt.Errorf("model %s has invalid rate limit values: [%d, %d]", model, limits[0], limits[1])
+		if limits[0] < 0 {
+			return fmt.Errorf("model %s has invalid rate limit value: [%d, %d], first value (total count) must be >= 0", model, limits[0], limits[1])
+		}
+		// 第二个参数预留，目前不使用，但要求 >= 0
+		if limits[1] < 0 {
+			return fmt.Errorf("model %s has invalid rate limit value: [%d, %d], second value must be >= 0", model, limits[0], limits[1])
 		}
 	}
 

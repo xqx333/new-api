@@ -197,7 +197,7 @@ export default function RequestRateLimit(props) {
                 <Form.TextArea
                   label={t('模型速率限制')}
                   placeholder={t(
-                    '{\n  "gpt-4": [100, 50],\n  "claude-3-opus": [50, 30]\n}',
+                    '{\n  "gpt-4": [100, 0],\n  "claude-3-opus": [50, 0]\n}',
                   )}
                   field={'ModelRequestRateLimitModel'}
                 autosize={{ minRows: 5, maxRows: 15 }}
@@ -213,11 +213,11 @@ export default function RequestRateLimit(props) {
                     <div>
                       <p style={{ marginBottom: -15 }}>{t('说明：')}</p>
                       <ul>
-                        <li>{t('使用 JSON 对象格式，格式为：{"模型名": [最多请求次数, 最多请求完成次数]}')}</li>
-                      <li>{t('示例：{"gpt-4": [100, 50], "claude-3-opus": [50, 30]}。')}</li>
-                      <li>{t('[最多请求次数]必须大于等于0，[最多请求完成次数]必须大于等于1。')}</li>
-                        <li>{t('模型速率配置优先级高于分组和全局速率限制。')}</li>
-                        <li>{t('当同时配置分组和模型限流时，取最严格的限制（即最小值）。')}</li>
+                        <li>{t('使用 JSON 对象格式，格式为：{"模型名": [最多请求次数, 0]}')}</li>
+                      <li>{t('示例：{"gpt-4": [100, 0], "claude-3-opus": [50, 0]}。')}</li>
+                      <li>{t('[最多请求次数]必须大于等于0，第二个参数固定填0（预留字段）。')}</li>
+                        <li>{t('模型速率限制只统计总请求数，不区分请求是否成功。')}</li>
+                        <li>{t('每个模型的限流独立计数，互不影响。')}</li>
                         <li>{t('限制周期统一使用上方配置的"限制周期"值。')}</li>
                       </ul>
                     </div>
