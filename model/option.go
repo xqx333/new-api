@@ -99,6 +99,8 @@ func InitOptionMap() {
 	common.OptionMap["ModelRequestRateLimitSuccessCount"] = strconv.Itoa(setting.ModelRequestRateLimitSuccessCount)
 	common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
 	common.OptionMap["ModelRequestRateLimitModel"] = setting.ModelRequestRateLimitModel2JSONString()
+	common.OptionMap["GlobalRequestRateLimitCount"] = strconv.Itoa(setting.GlobalRequestRateLimitCount)
+	common.OptionMap["GlobalModelRateLimitModel"] = setting.GlobalModelRateLimitModel2JSONString()
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
 	common.OptionMap["ModelPrice"] = ratio_setting.ModelPrice2JSONString()
 	common.OptionMap["CacheRatio"] = ratio_setting.CacheRatio2JSONString()
@@ -359,6 +361,10 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
 	case "ModelRequestRateLimitModel":
 		err = setting.UpdateModelRequestRateLimitModelByJSONString(value)
+	case "GlobalRequestRateLimitCount":
+		setting.GlobalRequestRateLimitCount, _ = strconv.Atoi(value)
+	case "GlobalModelRateLimitModel":
+		err = setting.UpdateGlobalModelRateLimitModelByJSONString(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
 	case "DataExportInterval":

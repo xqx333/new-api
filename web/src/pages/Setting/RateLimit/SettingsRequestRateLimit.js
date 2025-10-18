@@ -21,6 +21,8 @@ export default function RequestRateLimit(props) {
     ModelRequestRateLimitDurationMinutes: 1,
     ModelRequestRateLimitGroup: '',
     ModelRequestRateLimitModel: '',
+    GlobalRequestRateLimitCount: 0,
+    GlobalModelRateLimitModel: '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -231,6 +233,64 @@ export default function RequestRateLimit(props) {
             <Row>
               <Button size='default' onClick={onSubmit}>
                 {t('保存模型速率限制')}
+              </Button>
+            </Row>
+          </Form.Section>
+
+          <Form.Section text={t('全局速率限制（所有用户共享）')}>
+            <Row>
+              <Col xs={24} sm={16}>
+                <Form.InputNumber
+                  label={t('全局总请求数限制')}
+                  field={'GlobalRequestRateLimitCount'}
+                  placeholder={t('例如：10000')}
+                  min={0}
+                  extraText={t('所有用户共享的总请求数限制，0表示不限制。该限制优先级最高，在用户级别限流之前检查。')}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, GlobalRequestRateLimitCount: value })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('全局模型速率限制')}
+                  placeholder={t(
+                    '{\n  "gpt-4": 1000,\n  "claude-3-opus": 500\n}',
+                  )}
+                  field={'GlobalModelRateLimitModel'}
+                autosize={{ minRows: 5, maxRows: 15 }}
+                trigger='blur'
+                        stopValidateWithError
+                rules={[
+                  {
+                  validator: (rule, value) => verifyJSON(value),
+                  message: t('不是合法的 JSON 字符串'),
+                  },
+                ]}
+                  extraText={
+                    <div>
+                      <p style={{ marginBottom: -15 }}>{t('说明：')}</p>
+                      <ul>
+                        <li>{t('使用 JSON 对象格式，格式为：{"模型名": 最多请求次数}')}</li>
+                      <li>{t('示例：{"gpt-4": 1000, "claude-3-opus": 500}。')}</li>
+                      <li>{t('[最多请求次数]必须大于等于0，0表示不限制。')}</li>
+                        <li>{t('所有用户共享该模型的请求限制，达到限制后所有用户都无法使用该模型。')}</li>
+                        <li>{t('全局模型限流在用户级别限流之前检查，优先级更高。')}</li>
+                        <li>{t('限制周期统一使用上方配置的"限制周期"值。')}</li>
+                      </ul>
+                    </div>
+                  }
+                  onChange={(value) => {
+                    setInputs({ ...inputs, GlobalModelRateLimitModel: value });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Button size='default' onClick={onSubmit}>
+                {t('保存全局速率限制')}
               </Button>
             </Row>
           </Form.Section>

@@ -15,6 +15,11 @@ var ModelRequestRateLimitGroup = map[string][2]int{}
 var ModelRequestRateLimitModel = map[string][2]int{}
 var ModelRequestRateLimitMutex sync.RWMutex
 
+// 全局限流配置
+var GlobalRequestRateLimitCount = 0        // 全局总请求数限制，0表示不限制
+var GlobalModelRateLimitModel = map[string]int{} // 全局模型限流配置 {"model": maxCount}
+var GlobalRateLimitMutex sync.RWMutex
+
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()
     // 拷贝一份，缩短持锁时间
@@ -137,6 +142,64 @@ func CheckModelRequestRateLimitModel(jsonStr string) error {
 		// 第二个参数预留，目前不使用，但要求 >= 0
 		if limits[1] < 0 {
 			return fmt.Errorf("model %s has invalid rate limit value: [%d, %d], second value must be >= 0", model, limits[0], limits[1])
+		}
+	}
+
+	return nil
+}
+
+// GlobalModelRateLimitModel2JSONString 将全局模型限流配置转换为JSON字符串
+func GlobalModelRateLimitModel2JSONString() string {
+	GlobalRateLimitMutex.RLock()
+	snapshot := make(map[string]int, len(GlobalModelRateLimitModel))
+	for k, v := range GlobalModelRateLimitModel {
+		snapshot[k] = v
+	}
+	GlobalRateLimitMutex.RUnlock()
+
+	jsonBytes, err := json.Marshal(snapshot)
+	if err != nil {
+		common.SysError("error marshalling global model rate limit: " + err.Error())
+	}
+	return string(jsonBytes)
+}
+
+// UpdateGlobalModelRateLimitModelByJSONString 通过JSON字符串更新全局模型限流配置
+func UpdateGlobalModelRateLimitModelByJSONString(jsonStr string) error {
+	tmp := make(map[string]int)
+	if err := json.Unmarshal([]byte(jsonStr), &tmp); err != nil {
+		return err
+	}
+
+	GlobalRateLimitMutex.Lock()
+	GlobalModelRateLimitModel = tmp
+	GlobalRateLimitMutex.Unlock()
+
+	return nil
+}
+
+// GetGlobalModelRateLimit 获取指定模型的全局限流配置
+func GetGlobalModelRateLimit(model string) (int, bool) {
+	GlobalRateLimitMutex.RLock()
+	defer GlobalRateLimitMutex.RUnlock()
+
+	maxCount, found := GlobalModelRateLimitModel[model]
+	if !found {
+		return 0, false
+	}
+	return maxCount, true
+}
+
+// CheckGlobalModelRateLimitModel 检查全局模型限流配置的有效性
+func CheckGlobalModelRateLimitModel(jsonStr string) error {
+	checkGlobalModelRateLimitModel := make(map[string]int)
+	err := json.Unmarshal([]byte(jsonStr), &checkGlobalModelRateLimitModel)
+	if err != nil {
+		return err
+	}
+	for model, maxCount := range checkGlobalModelRateLimitModel {
+		if maxCount < 0 {
+			return fmt.Errorf("model %s has invalid rate limit value: %d, must be >= 0", model, maxCount)
 		}
 	}
 

@@ -19,6 +19,8 @@ const (
 	ModelRequestRateLimitCountMark        = "MRRL"   // 用户总请求
 	ModelRequestRateLimitSuccessCountMark = "MRRLS"  // 用户成功请求
 	ModelRequestRateLimitModelCountMark   = "MRRLM"  // 用户模型总请求
+	GlobalRequestRateLimitCountMark       = "GRRL"   // 全局总请求
+	GlobalModelRequestRateLimitCountMark  = "GRRLM"  // 全局模型总请求
 )
 
 // 检查Redis中的请求限制
@@ -74,18 +76,60 @@ func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxC
 	rdb.Expire(ctx, key, time.Duration(setting.ModelRequestRateLimitDurationMinutes)*time.Minute)
 }
 
-// Redis限流处理器（支持模型限流）
-func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, model string, modelTotalCount, modelSuccessCount int) gin.HandlerFunc {
+// Redis限流处理器（支持模型限流和全局限流）
+func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, model string, modelTotalCount, modelSuccessCount int, globalTotalCount, globalModelCount int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userId := strconv.Itoa(c.GetInt("id"))
-		// 特殊处理 userId = 999
-		// if userId == "999" {
-		// 	totalMaxCount = 100
-		// 	successMaxCount = 100
-		// }
-
 		ctx := context.Background()
 		rdb := common.RDB
+
+		// 0. 检查全局总请求数限制（所有用户共享）
+		if globalTotalCount > 0 {
+			globalTotalKey := fmt.Sprintf("rateLimit:%s:global", GlobalRequestRateLimitCountMark)
+			tb := limiter.New(ctx, rdb)
+			allowed, err := tb.Allow(
+				ctx,
+				globalTotalKey,
+				limiter.WithCapacity(int64(globalTotalCount)*duration),
+				limiter.WithRate(int64(globalTotalCount)),
+				limiter.WithRequested(duration),
+			)
+
+			if err != nil {
+				fmt.Println("检查全局总请求数限制失败:", err.Error())
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
+				return
+			}
+
+			if !allowed {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, "系统繁忙，请稍后再试")
+				return
+			}
+		}
+
+		// 0.1 检查全局模型限流（所有用户共享）
+		if model != "" && globalModelCount > 0 {
+			globalModelKey := fmt.Sprintf("rateLimit:%s:global:%s", GlobalModelRequestRateLimitCountMark, model)
+			tb := limiter.New(ctx, rdb)
+			allowed, err := tb.Allow(
+				ctx,
+				globalModelKey,
+				limiter.WithCapacity(int64(globalModelCount)*duration),
+				limiter.WithRate(int64(globalModelCount)),
+				limiter.WithRequested(duration),
+			)
+
+			if err != nil {
+				fmt.Println("检查全局模型请求数限制失败:", err.Error())
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
+				return
+			}
+
+			if !allowed {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("模型 %s 系统繁忙，请稍后再试", model))
+				return
+			}
+		}
 
 		// 1. 检查用户成功请求数限制
 		successKey := fmt.Sprintf("rateLimit:%s:%s", ModelRequestRateLimitSuccessCountMark, userId)
@@ -96,7 +140,6 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 			return
 		}
 		if !allowed {
-			// abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到请求数限制：%d分钟内最多请求%d次", setting.ModelRequestRateLimitDurationMinutes, successMaxCount))
 			abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("当前分组上游负载已饱和，请稍后再试"))
 			return
 		}
@@ -104,7 +147,6 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 		// 2. 检查用户总请求数限制（当totalMaxCount为0时会自动跳过，使用令牌桶限流器）
 		if totalMaxCount > 0 {
 			totalKey := fmt.Sprintf("rateLimit:%s", userId)
-			// 初始化
 			tb := limiter.New(ctx, rdb)
 			allowed, err = tb.Allow(
 				ctx,
@@ -121,13 +163,12 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 			}
 
 			if !allowed {
-				// abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到总请求数限制：%d分钟内最多请求%d次，包括失败次数，请检查您的请求是否正确", setting.ModelRequestRateLimitDurationMinutes, totalMaxCount))
 				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("当前分组上游负载已饱和，请稍后再试"))
 				return
 			}
 		}
 
-		// 3. 检查模型限流（如果配置了）
+		// 3. 检查用户模型限流（如果配置了）
 		if model != "" && modelTotalCount > 0 {
 			modelTotalKey := fmt.Sprintf("rateLimit:%s:%s:%s", ModelRequestRateLimitModelCountMark, userId, model)
 			tb := limiter.New(ctx, rdb)
@@ -161,14 +202,32 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, m
 	}
 }
 
-// 内存限流处理器（支持模型限流）
-func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, model string, modelTotalCount, modelSuccessCount int) gin.HandlerFunc {
+// 内存限流处理器（支持模型限流和全局限流）
+func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, model string, modelTotalCount, modelSuccessCount int, globalTotalCount, globalModelCount int) gin.HandlerFunc {
 	inMemoryRateLimiter.Init(time.Duration(setting.ModelRequestRateLimitDurationMinutes) * time.Minute)
 
 	return func(c *gin.Context) {
 		userId := strconv.Itoa(c.GetInt("id"))
 		totalKey := ModelRequestRateLimitCountMark + userId
 		successKey := ModelRequestRateLimitSuccessCountMark + userId
+
+		// 0. 检查全局总请求数限制（所有用户共享）
+		if globalTotalCount > 0 {
+			globalTotalKey := GlobalRequestRateLimitCountMark + "global"
+			if !inMemoryRateLimiter.Request(globalTotalKey, globalTotalCount, duration) {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, "系统繁忙，请稍后再试")
+				return
+			}
+		}
+
+		// 0.1 检查全局模型限流（所有用户共享）
+		if model != "" && globalModelCount > 0 {
+			globalModelKey := GlobalModelRequestRateLimitCountMark + "global:" + model
+			if !inMemoryRateLimiter.Request(globalModelKey, globalModelCount, duration) {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("模型 %s 系统繁忙，请稍后再试", model))
+				return
+			}
+		}
 
 		// 1. 检查用户总请求数限制（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
@@ -186,7 +245,7 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, 
 			return
 		}
 
-		// 3. 检查模型限流（如果配置了）
+		// 3. 检查用户模型限流（如果配置了）
 		if model != "" && modelTotalCount > 0 {
 			modelTotalKey := ModelRequestRateLimitModelCountMark + userId + ":" + model
 			if !inMemoryRateLimiter.Request(modelTotalKey, modelTotalCount, duration) {
@@ -259,11 +318,22 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 			}
 		}
 
+		// 获取全局限流配置
+		globalTotalCount := setting.GlobalRequestRateLimitCount
+		var globalModelCount int
+		
+		// 如果有模型信息，获取该模型的全局限流配置
+		if model != "" {
+			if count, found := setting.GetGlobalModelRateLimit(model); found {
+				globalModelCount = count
+			}
+		}
+
 		// 根据存储类型选择并执行限流处理器
 		if common.RedisEnabled {
-			redisRateLimitHandler(duration, totalMaxCount, successMaxCount, model, modelTotalCount, modelSuccessCount)(c)
+			redisRateLimitHandler(duration, totalMaxCount, successMaxCount, model, modelTotalCount, modelSuccessCount, globalTotalCount, globalModelCount)(c)
 		} else {
-			memoryRateLimitHandler(duration, totalMaxCount, successMaxCount, model, modelTotalCount, modelSuccessCount)(c)
+			memoryRateLimitHandler(duration, totalMaxCount, successMaxCount, model, modelTotalCount, modelSuccessCount, globalTotalCount, globalModelCount)(c)
 		}
 	}
 }
