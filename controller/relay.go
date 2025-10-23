@@ -73,9 +73,12 @@ func Relay(c *gin.Context) {
 	requestId := c.GetString(common.RequestIdKey)
 	group := c.GetString("group")
 	originalModel := c.GetString("original_model")
-	var openaiErr *dto.OpenAIErrorWithStatusCode
+    var openaiErr *dto.OpenAIErrorWithStatusCode
+    // determine retry times per user (override if configured)
+    userId := c.GetInt("id")
+    retryTimes := common.GetRetryTimesForUser(userId)
 
-	for i := 0; i <= common.RetryTimes; i++ {
+    for i := 0; i <= retryTimes; i++ {
 		channel, err := getChannel(c, group, originalModel, i)
 		if err != nil {
 			common.LogError(c, err.Error())
@@ -91,10 +94,10 @@ func Relay(c *gin.Context) {
 
 		go processChannelError(c, channel.Id, channel.Type, channel.Name, channel.GetAutoBan(), openaiErr)
 
-		if !shouldRetry(c, openaiErr, common.RetryTimes-i) {
-			break
-		}
-	}
+        if !shouldRetry(c, openaiErr, retryTimes-i) {
+            break
+        }
+    }
 	useChannel := c.GetStringSlice("use_channel")
 	if len(useChannel) > 1 {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
@@ -137,9 +140,12 @@ func WssRelay(c *gin.Context) {
 	group := c.GetString("group")
 	//wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01
 	originalModel := c.GetString("original_model")
-	var openaiErr *dto.OpenAIErrorWithStatusCode
+    var openaiErr *dto.OpenAIErrorWithStatusCode
+    // determine retry times per user (override if configured)
+    userId := c.GetInt("id")
+    retryTimes := common.GetRetryTimesForUser(userId)
 
-	for i := 0; i <= common.RetryTimes; i++ {
+    for i := 0; i <= retryTimes; i++ {
 		channel, err := getChannel(c, group, originalModel, i)
 		if err != nil {
 			common.LogError(c, err.Error())
@@ -155,10 +161,10 @@ func WssRelay(c *gin.Context) {
 
 		go processChannelError(c, channel.Id, channel.Type, channel.Name, channel.GetAutoBan(), openaiErr)
 
-		if !shouldRetry(c, openaiErr, common.RetryTimes-i) {
-			break
-		}
-	}
+        if !shouldRetry(c, openaiErr, retryTimes-i) {
+            break
+        }
+    }
 	useChannel := c.GetStringSlice("use_channel")
 	if len(useChannel) > 1 {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
@@ -179,9 +185,12 @@ func RelayClaude(c *gin.Context) {
 	requestId := c.GetString(common.RequestIdKey)
 	group := c.GetString("group")
 	originalModel := c.GetString("original_model")
-	var claudeErr *dto.ClaudeErrorWithStatusCode
+    var claudeErr *dto.ClaudeErrorWithStatusCode
+    // determine retry times per user (override if configured)
+    userId := c.GetInt("id")
+    retryTimes := common.GetRetryTimesForUser(userId)
 
-	for i := 0; i <= common.RetryTimes; i++ {
+    for i := 0; i <= retryTimes; i++ {
 		channel, err := getChannel(c, group, originalModel, i)
 		if err != nil {
 			common.LogError(c, err.Error())
@@ -199,10 +208,10 @@ func RelayClaude(c *gin.Context) {
 
 		go processChannelError(c, channel.Id, channel.Type, channel.Name, channel.GetAutoBan(), openaiErr)
 
-		if !shouldRetry(c, openaiErr, common.RetryTimes-i) {
-			break
-		}
-	}
+        if !shouldRetry(c, openaiErr, retryTimes-i) {
+            break
+        }
+    }
 	useChannel := c.GetStringSlice("use_channel")
 	if len(useChannel) > 1 {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
@@ -377,7 +386,9 @@ func RelayNotFound(c *gin.Context) {
 }
 
 func RelayTask(c *gin.Context) {
-	retryTimes := common.RetryTimes
+    // determine retry times per user (override if configured)
+    userId := c.GetInt("id")
+    retryTimes := common.GetRetryTimesForUser(userId)
 	channelId := c.GetInt("channel_id")
 	relayMode := c.GetInt("relay_mode")
 	group := c.GetString("group")

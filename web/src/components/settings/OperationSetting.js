@@ -20,6 +20,7 @@ const OperationSetting = () => {
     'general_setting.docs_link': '',
     QuotaPerUnit: 0,
     RetryTimes: 0,
+    UserRetryTimesOverride: '{}',
     DisplayInCurrencyEnabled: false,
     DisplayTokenStatEnabled: false,
     DefaultCollapseSidebar: false,

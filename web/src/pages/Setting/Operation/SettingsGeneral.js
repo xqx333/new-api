@@ -14,6 +14,7 @@ import {
   showError,
   showSuccess,
   showWarning,
+  verifyJSON,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +27,7 @@ export default function GeneralSettings(props) {
     'general_setting.docs_link': '',
     QuotaPerUnit: '',
     RetryTimes: '',
+    UserRetryTimesOverride: '',
     DisplayInCurrencyEnabled: false,
     DisplayTokenStatEnabled: false,
     DefaultCollapseSidebar: false,
@@ -80,7 +82,16 @@ export default function GeneralSettings(props) {
     const currentInputs = {};
     for (let key in props.options) {
       if (Object.keys(inputs).includes(key)) {
-        currentInputs[key] = props.options[key];
+        if (key === 'UserRetryTimesOverride') {
+          try {
+            const obj = JSON.parse(props.options[key] || '{}');
+            currentInputs[key] = JSON.stringify(obj, null, 2);
+          } catch (e) {
+            currentInputs[key] = props.options[key] || '';
+          }
+        } else {
+          currentInputs[key] = props.options[key];
+        }
       }
     }
     setInputs(currentInputs);
@@ -136,6 +147,27 @@ export default function GeneralSettings(props) {
                   initValue={''}
                   placeholder={t('失败重试次数')}
                   onChange={handleFieldChange('RetryTimes')}
+                  showClear
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24}>
+                <Form.TextArea
+                  field={'UserRetryTimesOverride'}
+                  label={t('用户失败重试覆盖(JSON)')}
+                  extraText={t('通过 JSON 为特定用户覆盖失败重试次数，键为用户ID，值为重试次数，例如：{"123": 1, "456": 3}')}
+                  placeholder={t('为一个 JSON 文本')}
+                  autosize={{ minRows: 3, maxRows: 10 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  rules={[
+                    {
+                      validator: (rule, value) => verifyJSON(value || '{}'),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  onChange={handleFieldChange('UserRetryTimesOverride')}
                   showClear
                 />
               </Col>

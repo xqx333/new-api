@@ -1202,6 +1202,8 @@
   "默认聊天页面链接": "Default chat page link",
   "聊天页面 2 链接": "Chat page 2 link",
   "失败重试次数": "Failed retry times",
+  "用户失败重试覆盖(JSON)": "User retry override (JSON)",
+  "通过 JSON 为特定用户覆盖失败重试次数，键为用户ID，值为重试次数，例如：{\"123\": 1, \"456\": 3}": "Override failed retry times for specific users via JSON. Key is user ID, value is retry times, e.g.: {\"123\": 1, \"456\": 3}",
   "额度查询接口返回令牌额度而非用户额度": "Displays token quota instead of user quota",
   "默认折叠侧边栏": "Default collapse sidebar",
   "聊天链接功能已经弃用，请使用下方聊天设置功能": "Chat link function has been deprecated, please use the chat settings below",

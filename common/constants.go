@@ -1,12 +1,14 @@
 package common
 
 import (
-	//"os"
-	//"strconv"
-	"sync"
-	"time"
+    //"os"
+    //"strconv"
+    "encoding/json"
+    "strconv"
+    "sync"
+    "time"
 
-	"github.com/google/uuid"
+    "github.com/google/uuid"
 )
 
 var StartTime = time.Now().Unix() // unit: second
@@ -104,6 +106,53 @@ var QuotaRemindThreshold = 1000
 var PreConsumedQuota = 500
 
 var RetryTimes = 0
+
+// UserRetryTimesOverride stores per-user retry times override mapping.
+// key: user ID, value: retry times to use for that user.
+var UserRetryTimesOverride = map[int]int{}
+var UserRetryTimesOverrideRWMutex sync.RWMutex
+
+// GetRetryTimesForUser returns retry times for the given user, falling back to global RetryTimes.
+func GetRetryTimesForUser(userID int) int {
+    UserRetryTimesOverrideRWMutex.RLock()
+    defer UserRetryTimesOverrideRWMutex.RUnlock()
+    if v, ok := UserRetryTimesOverride[userID]; ok {
+        return v
+    }
+    return RetryTimes
+}
+
+// UpdateUserRetryTimesFromJSONString updates UserRetryTimesOverride from a JSON string.
+// JSON format example: {"123": 1, "456": 3}
+func UpdateUserRetryTimesFromJSONString(s string) error {
+    if s == "" {
+        // treat empty as empty map
+        UserRetryTimesOverrideRWMutex.Lock()
+        UserRetryTimesOverride = map[int]int{}
+        UserRetryTimesOverrideRWMutex.Unlock()
+        return nil
+    }
+    var m map[string]int
+    if err := json.Unmarshal([]byte(s), &m); err != nil {
+        return err
+    }
+    newMap := make(map[int]int, len(m))
+    for k, v := range m {
+        if v < 0 {
+            v = 0
+        }
+        id, err := strconv.Atoi(k)
+        if err != nil {
+            // skip non-integer keys silently
+            continue
+        }
+        newMap[id] = v
+    }
+    UserRetryTimesOverrideRWMutex.Lock()
+    UserRetryTimesOverride = newMap
+    UserRetryTimesOverrideRWMutex.Unlock()
+    return nil
+}
 
 //var RootUserEmail = ""
 
