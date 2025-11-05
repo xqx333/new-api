@@ -13,6 +13,8 @@ var ModelRequestRateLimitCount = 0
 var ModelRequestRateLimitSuccessCount = 1000
 var ModelRequestRateLimitGroup = map[string][2]int{}
 var ModelRequestRateLimitModel = map[string][2]int{}
+// 针对单个用户的限流配置，优先级高于分组与默认配置
+var ModelRequestRateLimitUser = map[string][2]int{}
 var ModelRequestRateLimitMutex sync.RWMutex
 
 // 全局限流配置
@@ -47,6 +49,67 @@ func UpdateModelRequestRateLimitGroupByJSONString(jsonStr string) error {
     ModelRequestRateLimitMutex.Lock()
     ModelRequestRateLimitGroup = tmp
     ModelRequestRateLimitMutex.Unlock()
+    return nil
+}
+
+// ModelRequestRateLimitUser2JSONString 将用户限流配置转换为 JSON 字符串
+func ModelRequestRateLimitUser2JSONString() string {
+    ModelRequestRateLimitMutex.RLock()
+    // 拷贝一份，缩短持锁时间
+    snapshot := make(map[string][2]int, len(ModelRequestRateLimitUser))
+    for k, v := range ModelRequestRateLimitUser {
+        snapshot[k] = v
+    }
+    ModelRequestRateLimitMutex.RUnlock()
+
+    jsonBytes, err := json.Marshal(snapshot)
+    if err != nil {
+        common.SysError("error marshalling user rate limit: " + err.Error())
+    }
+    return string(jsonBytes)
+}
+
+// UpdateModelRequestRateLimitUserByJSONString 通过 JSON 字符串更新用户限流配置
+func UpdateModelRequestRateLimitUserByJSONString(jsonStr string) error {
+    // 先在局部变量里解析，避免半更新
+    tmp := make(map[string][2]int)
+    if err := json.Unmarshal([]byte(jsonStr), &tmp); err != nil {
+        return err
+    }
+    // 成功后再一次性替换，使用写锁
+    ModelRequestRateLimitMutex.Lock()
+    ModelRequestRateLimitUser = tmp
+    ModelRequestRateLimitMutex.Unlock()
+    return nil
+}
+
+// GetUserRateLimit 获取指定用户的限流配置
+func GetUserRateLimit(userId string) (totalCount, successCount int, found bool) {
+    ModelRequestRateLimitMutex.RLock()
+    defer ModelRequestRateLimitMutex.RUnlock()
+
+    if ModelRequestRateLimitUser == nil {
+        return 0, 0, false
+    }
+
+    limits, ok := ModelRequestRateLimitUser[userId]
+    if !ok {
+        return 0, 0, false
+    }
+    return limits[0], limits[1], true
+}
+
+// CheckModelRequestRateLimitUser 检查用户限流配置的有效性
+func CheckModelRequestRateLimitUser(jsonStr string) error {
+    check := make(map[string][2]int)
+    if err := json.Unmarshal([]byte(jsonStr), &check); err != nil {
+        return err
+    }
+    for uid, limits := range check {
+        if limits[0] < 0 || limits[1] < 1 {
+            return fmt.Errorf("user %s has invalid rate limit values: [%d, %d]", uid, limits[0], limits[1])
+        }
+    }
     return nil
 }
 

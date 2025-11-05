@@ -97,8 +97,9 @@ func InitOptionMap() {
 	common.OptionMap["ModelRequestRateLimitCount"] = strconv.Itoa(setting.ModelRequestRateLimitCount)
 	common.OptionMap["ModelRequestRateLimitDurationMinutes"] = strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes)
 	common.OptionMap["ModelRequestRateLimitSuccessCount"] = strconv.Itoa(setting.ModelRequestRateLimitSuccessCount)
-	common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
-	common.OptionMap["ModelRequestRateLimitModel"] = setting.ModelRequestRateLimitModel2JSONString()
+    common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
+    common.OptionMap["ModelRequestRateLimitUser"] = setting.ModelRequestRateLimitUser2JSONString()
+    common.OptionMap["ModelRequestRateLimitModel"] = setting.ModelRequestRateLimitModel2JSONString()
 	common.OptionMap["GlobalRequestRateLimitCount"] = strconv.Itoa(setting.GlobalRequestRateLimitCount)
 	common.OptionMap["GlobalModelRateLimitModel"] = setting.GlobalModelRateLimitModel2JSONString()
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
@@ -359,10 +360,12 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.ModelRequestRateLimitDurationMinutes, _ = strconv.Atoi(value)
 	case "ModelRequestRateLimitSuccessCount":
 		setting.ModelRequestRateLimitSuccessCount, _ = strconv.Atoi(value)
-	case "ModelRequestRateLimitGroup":
-		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
-	case "ModelRequestRateLimitModel":
-		err = setting.UpdateModelRequestRateLimitModelByJSONString(value)
+    case "ModelRequestRateLimitGroup":
+        err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
+    case "ModelRequestRateLimitUser":
+        err = setting.UpdateModelRequestRateLimitUserByJSONString(value)
+    case "ModelRequestRateLimitModel":
+        err = setting.UpdateModelRequestRateLimitModelByJSONString(value)
 	case "GlobalRequestRateLimitCount":
 		setting.GlobalRequestRateLimitCount, _ = strconv.Atoi(value)
 	case "GlobalModelRateLimitModel":

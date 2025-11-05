@@ -303,6 +303,13 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 			successMaxCount = groupSuccessCount
 		}
 
+		// 用户级限流（优先级高于分组与默认）
+		userIdStr := strconv.Itoa(c.GetInt("id"))
+		if uTotal, uSuccess, uFound := setting.GetUserRateLimit(userIdStr); uFound {
+			totalMaxCount = uTotal
+			successMaxCount = uSuccess
+		}
+
 		// 获取模型信息和模型限流配置
 		var model string
 		var modelTotalCount, modelSuccessCount int

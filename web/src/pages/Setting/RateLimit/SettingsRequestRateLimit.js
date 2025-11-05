@@ -20,6 +20,7 @@ export default function RequestRateLimit(props) {
     ModelRequestRateLimitSuccessCount: 1000,
     ModelRequestRateLimitDurationMinutes: 1,
     ModelRequestRateLimitGroup: '',
+    ModelRequestRateLimitUser: '',
     ModelRequestRateLimitModel: '',
     GlobalRequestRateLimitCount: 0,
     GlobalModelRateLimitModel: '',
@@ -190,6 +191,38 @@ export default function RequestRateLimit(props) {
                   }
                   onChange={(value) => {
                     setInputs({ ...inputs, ModelRequestRateLimitGroup: value });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('用户速率限制')}
+                  placeholder={t('{\n  "123": [200, 100],\n  "456": [0, 1000]\n}')}
+                  field={'ModelRequestRateLimitUser'}
+                  autosize={{ minRows: 5, maxRows: 15 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  rules={[
+                    {
+                      validator: (rule, value) => verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  extraText={
+                    <div>
+                      <p style={{ marginBottom: -15 }}>{t('说明：')}</p>
+                      <ul>
+                        <li>{t('使用 JSON 对象格式，格式为：{"用户ID": [最多请求次数, 成功次数]}')}</li>
+                        <li>{t('示例：{"123": [200, 100], "456": [0, 1000]}')}</li>
+                        <li>{t('[最多请求次数]必须大于等于0，0表示不限制；[成功次数]必须大于等于1')}</li>
+                        <li>{t('优先级：用户 > 分组 > 默认')}</li>
+                      </ul>
+                    </div>
+                  }
+                  onChange={(value) => {
+                    setInputs({ ...inputs, ModelRequestRateLimitUser: value });
                   }}
                 />
               </Col>
