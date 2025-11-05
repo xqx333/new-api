@@ -247,7 +247,10 @@ export default function RequestRateLimit(props) {
                   min={0}
                   extraText={t('所有用户共享的总请求数限制，0表示不限制。该限制优先级最高，在用户级别限流之前检查。')}
                   onChange={(value) =>
-                    setInputs({ ...inputs, GlobalRequestRateLimitCount: value })
+                    setInputs({
+                      ...inputs,
+                      GlobalRequestRateLimitCount: String(value),
+                    })
                   }
                 />
               </Col>
