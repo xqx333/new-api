@@ -41,6 +41,8 @@ var geminiSupportedMimeTypes = map[string]bool{
 const (
 	pro25MinBudget       = 128
 	pro25MaxBudget       = 32768
+	pro3MinBudget       = 128
+	pro3MaxBudget       = 32768
 	flash25MaxBudget     = 24576
 	flash25LiteMinBudget = 512
 	flash25LiteMaxBudget = 24576
@@ -52,6 +54,7 @@ func clampThinkingBudget(modelName string, budget int) int {
 		!strings.HasPrefix(modelName, "gemini-2.5-pro-preview-05-06") &&
 		!strings.HasPrefix(modelName, "gemini-2.5-pro-preview-03-25")
 	is25FlashLite := strings.HasPrefix(modelName, "gemini-2.5-flash-lite")
+	is3Pro := strings.HasPrefix(modelName, "gemini-3-pro")
 
 	if is25FlashLite {
 		if budget < flash25LiteMinBudget {
@@ -66,6 +69,13 @@ func clampThinkingBudget(modelName string, budget int) int {
 		}
 		if budget > pro25MaxBudget {
 			return pro25MaxBudget
+		}
+	} else if is3Pro {
+		if budget < pro3MinBudget {
+			return pro3MinBudget
+		}
+		if budget > pro3MaxBudget {
+			return pro3MaxBudget
 		}
 	} else { // 其他模型
 		if budget < 0 {
