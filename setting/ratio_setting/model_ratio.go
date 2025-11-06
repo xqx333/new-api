@@ -373,6 +373,7 @@ func GetModelRatio(name string) (float64, bool) {
 
 	name = handleThinkingBudgetModel(name, "gemini-2.5-flash", "gemini-2.5-flash-thinking-*")
 	name = handleThinkingBudgetModel(name, "gemini-2.5-pro", "gemini-2.5-pro-thinking-*")
+	name = handleThinkingBudgetModel(name, "gemini-3-pro-preview-11-2025", "gemini-3-pro-preview-11-2025-thinking-*")
 	if strings.HasPrefix(name, "gpt-4-gizmo") {
 		name = "gpt-4-gizmo-*"
 	}
