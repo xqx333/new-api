@@ -199,7 +199,41 @@ func getImageToken(fileMeta *types.FileMeta, model string, stream bool) (int, er
 	return tiles*tileTokens + baseTokens, nil
 }
 
+var skipTokenChannelIDs = make(map[int]struct{})
+
+func init() {
+	loadSkipTokenChannelIDs()
+}
+
+func loadSkipTokenChannelIDs() {
+	raw := strings.TrimSpace(os.Getenv("SKIP_TOKEN_CHANNEL_IDS"))
+	if raw == "" {
+		return
+	}
+
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		id, err := strconv.Atoi(part)
+		if err != nil {
+			log.Printf("invalid channel id in SKIP_TOKEN_CHANNEL_IDS: %s", part)
+			continue
+		}
+
+		skipTokenChannelIDs[id] = struct{}{}
+	}
+}
+
 func EstimateRequestToken(c *gin.Context, meta *types.TokenCountMeta, info *relaycommon.RelayInfo) (int, error) {
+	// 获取渠道id
+	channelID := common.GetContextKeyInt(c, constant.ContextKeyChannelId)
+	// 是否跳过
+	if _, skip := skipTokenChannelIDs[channelID]; skip {
+		return 2000, nil
+	}
 	// 是否统计token
 	if !constant.CountToken {
 		return 0, nil
