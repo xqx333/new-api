@@ -129,8 +129,6 @@ var GeminiSafetySetting string
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT
 var CohereSafetySetting string
 
-var RequestTimeout = GetEnvOrDefault("REQUEST_TIMEOUT", 0) // 默认为0不限制超时时间
-
 var ImageToBase64Enabled = GetEnvOrDefaultBool("IMAGE_TO_BASE64", true) // 是否把图片链接转换为base64，默认为true
 
 const (

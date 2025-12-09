@@ -51,13 +51,6 @@ func DoWorkerRequest(req *WorkerRequest) (*http.Response, error) {
 
 
 func DoDownloadRequest(originUrl string, reason ...string) (resp *http.Response, err error) {
-	requestTimeout := common.RequestTimeout
-
-	client := &http.Client{}
-	if requestTimeout > 0 {
-		client.Timeout = time.Duration(requestTimeout) * time.Second
-	}
-
 	if system_setting.EnableWorker() {
 		common.SysLog(fmt.Sprintf("downloading file from worker: %s, reason: %s", originUrl, strings.Join(reason, ", ")))
 		req := &WorkerRequest{
