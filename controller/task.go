@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"one-api/common"
-	"one-api/constant"
-	"one-api/dto"
-	"one-api/logger"
-	"one-api/model"
-	"one-api/relay"
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -28,7 +29,7 @@ func UpdateTaskBulk() {
 		time.Sleep(time.Duration(15) * time.Second)
 		common.SysLog("任务进度轮询开始")
 		ctx := context.TODO()
-		allTasks := model.GetAllUnFinishSyncTasks(500)
+		allTasks := model.GetAllUnFinishSyncTasks(constant.TaskQueryLimit)
 		platformTask := make(map[constant.TaskPlatform][]*model.Task)
 		for _, t := range allTasks {
 			platformTask[t.Platform] = append(platformTask[t.Platform], t)
@@ -115,9 +116,10 @@ func updateSunoTaskAll(ctx context.Context, channelId int, taskIds []string, tas
 	if adaptor == nil {
 		return errors.New("adaptor not found")
 	}
+	proxy := channel.GetSetting().Proxy
 	resp, err := adaptor.FetchTask(*channel.BaseURL, channel.Key, map[string]any{
 		"ids": taskIds,
-	})
+	}, proxy)
 	if err != nil {
 		common.SysLog(fmt.Sprintf("Get Task Do req error: %v", err))
 		return err

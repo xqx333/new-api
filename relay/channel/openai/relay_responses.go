@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"one-api/common"
-	"one-api/dto"
-	"one-api/logger"
-	relaycommon "one-api/relay/common"
-	"one-api/relay/helper"
-	"one-api/service"
-	"one-api/types"
 	"strings"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/logger"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/helper"
+	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
 )
@@ -140,7 +141,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 
 	if usage.PromptTokens == 0 && usage.CompletionTokens != 0 {
-		usage.PromptTokens = info.PromptTokens
+		usage.PromptTokens = info.GetEstimatePromptTokens()
 	}
 
 	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens

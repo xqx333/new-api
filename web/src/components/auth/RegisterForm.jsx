@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   API,
@@ -28,9 +28,10 @@ import {
   updateAPI,
   getSystemName,
   setUserData,
+  onDiscordOAuthClicked,
 } from '../../helpers';
 import Turnstile from 'react-turnstile';
-import { Button, Card, Divider, Form, Icon, Modal } from '@douyinfe/semi-ui';
+import { Button, Card, Checkbox, Divider, Form, Icon, Modal } from '@douyinfe/semi-ui';
 import Title from '@douyinfe/semi-ui/lib/es/typography/title';
 import Text from '@douyinfe/semi-ui/lib/es/typography/text';
 import {
@@ -51,6 +52,7 @@ import WeChatIcon from '../common/logo/WeChatIcon';
 import TelegramLoginButton from 'react-telegram-login/src';
 import { UserContext } from '../../context/User';
 import { useTranslation } from 'react-i18next';
+import { SiDiscord } from 'react-icons/si';
 
 const RegisterForm = () => {
   let navigate = useNavigate();
@@ -72,6 +74,7 @@ const RegisterForm = () => {
   const [showEmailRegister, setShowEmailRegister] = useState(false);
   const [wechatLoading, setWechatLoading] = useState(false);
   const [githubLoading, setGithubLoading] = useState(false);
+  const [discordLoading, setDiscordLoading] = useState(false);
   const [oidcLoading, setOidcLoading] = useState(false);
   const [linuxdoLoading, setLinuxdoLoading] = useState(false);
   const [emailRegisterLoading, setEmailRegisterLoading] = useState(false);
@@ -82,6 +85,12 @@ const RegisterForm = () => {
   const [wechatCodeSubmitLoading, setWechatCodeSubmitLoading] = useState(false);
   const [disableButton, setDisableButton] = useState(false);
   const [countdown, setCountdown] = useState(30);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [hasUserAgreement, setHasUserAgreement] = useState(false);
+  const [hasPrivacyPolicy, setHasPrivacyPolicy] = useState(false);
+  const [githubButtonText, setGithubButtonText] = useState('使用 GitHub 继续');
+  const [githubButtonDisabled, setGithubButtonDisabled] = useState(false);
+  const githubTimeoutRef = useRef(null);
 
   const logo = getLogo();
   const systemName = getSystemName();
@@ -106,6 +115,10 @@ const RegisterForm = () => {
       setTurnstileEnabled(true);
       setTurnstileSiteKey(status.turnstile_site_key);
     }
+    
+    // 从 status 获取用户协议和隐私政策的启用状态
+    setHasUserAgreement(status.user_agreement_enabled || false);
+    setHasPrivacyPolicy(status.privacy_policy_enabled || false);
   }, [status]);
 
   useEffect(() => {
@@ -120,6 +133,14 @@ const RegisterForm = () => {
     }
     return () => clearInterval(countdownInterval); // Clean up on unmount
   }, [disableButton, countdown]);
+
+  useEffect(() => {
+    return () => {
+      if (githubTimeoutRef.current) {
+        clearTimeout(githubTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const onWeChatLoginClicked = () => {
     setWechatLoading(true);
@@ -225,18 +246,45 @@ const RegisterForm = () => {
   };
 
   const handleGitHubClick = () => {
+    if (githubButtonDisabled) {
+      return;
+    }
     setGithubLoading(true);
+    setGithubButtonDisabled(true);
+    setGithubButtonText(t('正在跳转 GitHub...'));
+    if (githubTimeoutRef.current) {
+      clearTimeout(githubTimeoutRef.current);
+    }
+    githubTimeoutRef.current = setTimeout(() => {
+      setGithubLoading(false);
+      setGithubButtonText(t('请求超时，请刷新页面后重新发起 GitHub 登录'));
+      setGithubButtonDisabled(true);
+    }, 20000);
     try {
-      onGitHubOAuthClicked(status.github_client_id);
+      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true });
     } finally {
       setTimeout(() => setGithubLoading(false), 3000);
+    }
+  };
+
+  const handleDiscordClick = () => {
+    setDiscordLoading(true);
+    try {
+      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
+    } finally {
+      setTimeout(() => setDiscordLoading(false), 3000);
     }
   };
 
   const handleOIDCClick = () => {
     setOidcLoading(true);
     try {
-      onOIDCClicked(status.oidc_authorization_endpoint, status.oidc_client_id);
+      onOIDCClicked(
+        status.oidc_authorization_endpoint,
+        status.oidc_client_id,
+        false,
+        { shouldLogout: true },
+      );
     } finally {
       setTimeout(() => setOidcLoading(false), 3000);
     }
@@ -245,7 +293,7 @@ const RegisterForm = () => {
   const handleLinuxDOClick = () => {
     setLinuxdoLoading(true);
     try {
-      onLinuxDOOAuthClicked(status.linuxdo_client_id);
+      onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true });
     } finally {
       setTimeout(() => setLinuxdoLoading(false), 3000);
     }
@@ -340,8 +388,22 @@ const RegisterForm = () => {
                     icon={<IconGithubLogo size='large' />}
                     onClick={handleGitHubClick}
                     loading={githubLoading}
+                    disabled={githubButtonDisabled}
                   >
-                    <span className='ml-3'>{t('使用 GitHub 继续')}</span>
+                    <span className='ml-3'>{githubButtonText}</span>
+                  </Button>
+                )}
+
+                {status.discord_oauth && (
+                  <Button
+                    theme='outline'
+                    className='w-full h-12 flex items-center justify-center !rounded-full border border-gray-200 hover:bg-gray-50 transition-colors'
+                    type='tertiary'
+                    icon={<SiDiscord style={{ color: '#5865F2', width: '20px', height: '20px' }} />}
+                    onClick={handleDiscordClick}
+                    loading={discordLoading}
+                  >
+                    <span className='ml-3'>{t('使用 Discord 继续')}</span>
                   </Button>
                 )}
 
@@ -505,6 +567,44 @@ const RegisterForm = () => {
                   </>
                 )}
 
+                {(hasUserAgreement || hasPrivacyPolicy) && (
+                  <div className='pt-4'>
+                    <Checkbox
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    >
+                      <Text size='small' className='text-gray-600'>
+                        {t('我已阅读并同意')}
+                        {hasUserAgreement && (
+                          <>
+                            <a
+                              href='/user-agreement'
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='text-blue-600 hover:text-blue-800 mx-1'
+                            >
+                              {t('用户协议')}
+                            </a>
+                          </>
+                        )}
+                        {hasUserAgreement && hasPrivacyPolicy && t('和')}
+                        {hasPrivacyPolicy && (
+                          <>
+                            <a
+                              href='/privacy-policy'
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='text-blue-600 hover:text-blue-800 mx-1'
+                            >
+                              {t('隐私政策')}
+                            </a>
+                          </>
+                        )}
+                      </Text>
+                    </Checkbox>
+                  </div>
+                )}
+
                 <div className='space-y-2 pt-2'>
                   <Button
                     theme='solid'
@@ -513,6 +613,7 @@ const RegisterForm = () => {
                     htmlType='submit'
                     onClick={handleSubmit}
                     loading={registerLoading}
+                    disabled={(hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms}
                   >
                     {t('注册')}
                   </Button>
@@ -520,6 +621,7 @@ const RegisterForm = () => {
               </Form>
 
               {(status.github_oauth ||
+                status.discord_oauth ||
                 status.oidc_enabled ||
                 status.wechat_login ||
                 status.linuxdo_oauth ||
@@ -615,6 +717,7 @@ const RegisterForm = () => {
         {showEmailRegister ||
         !(
           status.github_oauth ||
+          status.discord_oauth ||
           status.oidc_enabled ||
           status.wechat_login ||
           status.linuxdo_oauth ||

@@ -6,9 +6,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"one-api/common"
 	"sync"
 	"time"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"golang.org/x/net/proxy"
 )
@@ -19,18 +21,49 @@ var (
 	proxyClients    = make(map[string]*http.Client)
 )
 
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	fetchSetting := system_setting.GetFetchSetting()
+	urlStr := req.URL.String()
+	if err := common.ValidateURLWithFetchSetting(urlStr, fetchSetting.EnableSSRFProtection, fetchSetting.AllowPrivateIp, fetchSetting.DomainFilterMode, fetchSetting.IpFilterMode, fetchSetting.DomainList, fetchSetting.IpList, fetchSetting.AllowedPorts, fetchSetting.ApplyIPFilterForDomain); err != nil {
+		return fmt.Errorf("redirect to %s blocked: %v", urlStr, err)
+	}
+	if len(via) >= 10 {
+		return fmt.Errorf("stopped after 10 redirects")
+	}
+	return nil
+}
+
 func InitHttpClient() {
+	transport := &http.Transport{
+		MaxIdleConns:        common.RelayMaxIdleConns,
+		MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
+		ForceAttemptHTTP2:   true,
+	}
+
 	if common.RelayTimeout == 0 {
-		httpClient = &http.Client{}
+		httpClient = &http.Client{
+			Transport:     transport,
+			CheckRedirect: checkRedirect,
+		}
 	} else {
 		httpClient = &http.Client{
-			Timeout: time.Duration(common.RelayTimeout) * time.Second,
+			Transport:     transport,
+			Timeout:       time.Duration(common.RelayTimeout) * time.Second,
+			CheckRedirect: checkRedirect,
 		}
 	}
 }
 
 func GetHttpClient() *http.Client {
 	return httpClient
+}
+
+// GetHttpClientWithProxy returns the default client or a proxy-enabled one when proxyURL is provided.
+func GetHttpClientWithProxy(proxyURL string) (*http.Client, error) {
+	if proxyURL == "" {
+		return GetHttpClient(), nil
+	}
+	return NewProxyHttpClient(proxyURL)
 }
 
 // ResetProxyClientCache 清空代理客户端缓存，确保下次使用时重新初始化
@@ -67,8 +100,12 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 	case "http", "https":
 		client := &http.Client{
 			Transport: &http.Transport{
-				Proxy: http.ProxyURL(parsedURL),
+				MaxIdleConns:        common.RelayMaxIdleConns,
+				MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
+				ForceAttemptHTTP2:   true,
+				Proxy:               http.ProxyURL(parsedURL),
 			},
+			CheckRedirect: checkRedirect,
 		}
 		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
 		proxyClientLock.Lock()
@@ -98,10 +135,14 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 
 		client := &http.Client{
 			Transport: &http.Transport{
+				MaxIdleConns:        common.RelayMaxIdleConns,
+				MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
+				ForceAttemptHTTP2:   true,
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					return dialer.Dial(network, addr)
 				},
 			},
+			CheckRedirect: checkRedirect,
 		}
 		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
 		proxyClientLock.Lock()

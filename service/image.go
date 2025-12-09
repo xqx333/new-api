@@ -8,13 +8,16 @@ import (
 	"net/http"
 	"image"
 	"io"
-	"one-api/common"
-	"one-api/constant"
+	"net/http"
 	"strings"
-	"one-api/dto"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+
 	"golang.org/x/image/webp"
 )
 
+// return image.Config, format, clean base64 string, error
 func DecodeBase64ImageData(base64String string) (image.Config, string, string, error) {
 	// 去除base64数据的URL前缀（如果有）
 	if idx := strings.Index(base64String, ","); idx != -1 {

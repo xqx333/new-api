@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"one-api/constant"
-	"one-api/dto"
-	"one-api/model"
-	"one-api/relay/channel"
-	relaycommon "one-api/relay/common"
-	"one-api/service"
+
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay/channel"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -145,7 +146,7 @@ func (a *TaskAdaptor) DoResponse(c *gin.Context, resp *http.Response, info *rela
 }
 
 // FetchTask fetch task status
-func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any) (*http.Response, error) {
+func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any, proxy string) (*http.Response, error) {
 	taskID, ok := body["task_id"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid task_id")
@@ -162,7 +163,11 @@ func (a *TaskAdaptor) FetchTask(baseUrl, key string, body map[string]any) (*http
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+key)
 
-	return service.GetHttpClient().Do(req)
+	client, err := service.GetHttpClientWithProxy(proxy)
+	if err != nil {
+		return nil, fmt.Errorf("new proxy http client failed: %w", err)
+	}
+	return client.Do(req)
 }
 
 func (a *TaskAdaptor) GetModelList() []string {

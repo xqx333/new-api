@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"one-api/common"
-	"one-api/model"
-	"one-api/setting"
-	"one-api/setting/console_setting"
-	"one-api/setting/ratio_setting"
-	"one-api/setting/system_setting"
 	"strings"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/console_setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -67,6 +68,14 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": "无法启用 GitHub OAuth，请先填入 GitHub Client Id 以及 GitHub Client Secret！",
+			})
+			return
+		}
+	case "discord.enabled":
+		if option.Value == "true" && system_setting.GetDiscordSettings().ClientId == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无法启用 Discord OAuth，请先填入 Discord Client Id 以及 Discord Client Secret！",
 			})
 			return
 		}
