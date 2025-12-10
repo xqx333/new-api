@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"io"
@@ -135,7 +136,14 @@ func ParseMultipartFormReusable(c *gin.Context) (*multipart.Form, error) {
 		return nil, err
 	}
 
-	reader := multipart.NewReader(bytes.NewReader(requestBody), boundary)
+	// Create a buffered reader with a larger buffer size to handle large files
+	// The default bufio.Reader buffer is 4KB which can cause "bufio: buffer full" errors
+	// when parsing large multipart forms. We use 1MB buffer to accommodate large audio files.
+	bufferSize := 1024 * 1024 // 1MB buffer
+	bodyReader := bytes.NewReader(requestBody)
+	bufferedReader := bufio.NewReaderSize(bodyReader, bufferSize)
+	
+	reader := multipart.NewReader(bufferedReader, boundary)
 	form, err := reader.ReadForm(multipartMemoryLimit())
 	if err != nil {
 		return nil, err
@@ -187,7 +195,13 @@ func parseMultipartFormData(c *gin.Context, data []byte, v any) error {
 		return err
 	}
 
-	reader := multipart.NewReader(bytes.NewReader(data), boundary)
+	// Create a buffered reader with a larger buffer size to handle large files
+	// The default bufio.Reader buffer is 4KB which can cause "bufio: buffer full" errors
+	bufferSize := 1024 * 1024 // 1MB buffer
+	bodyReader := bytes.NewReader(data)
+	bufferedReader := bufio.NewReaderSize(bodyReader, bufferSize)
+	
+	reader := multipart.NewReader(bufferedReader, boundary)
 	form, err := reader.ReadForm(multipartMemoryLimit())
 	if err != nil {
 		return err
