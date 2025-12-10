@@ -17,6 +17,7 @@ import (
 )
 
 const KeyRequestBody = "key_request_body"
+const KeyMultipartForm = "key_multipart_form"
 
 func GetRequestBody(c *gin.Context) ([]byte, error) {
 	requestBody, _ := c.Get(KeyRequestBody)
@@ -124,6 +125,13 @@ func ApiSuccess(c *gin.Context, data any) {
 }
 
 func ParseMultipartFormReusable(c *gin.Context) (*multipart.Form, error) {
+	// Check if multipart form is already cached (for retry scenarios)
+	cachedForm, exists := c.Get(KeyMultipartForm)
+	if exists && cachedForm != nil {
+		// Return cached form to avoid re-parsing on retry
+		return cachedForm.(*multipart.Form), nil
+	}
+
 	requestBody, err := GetRequestBody(c)
 	if err != nil {
 		return nil, err
@@ -140,6 +148,9 @@ func ParseMultipartFormReusable(c *gin.Context) (*multipart.Form, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Cache the parsed form for potential retries
+	c.Set(KeyMultipartForm, form)
 
 	// Reset request body
 	c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
