@@ -56,7 +56,7 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 	}
 
 	if common.ImageToBase64Enabled {
-		service.ConvertResponsesImageUrlsToBase64(responsesReq)
+		service.ConvertResponsesImageUrlsToBase64(c, responsesReq)
 	}
 
 	request, err := common.DeepCopy(responsesReq)

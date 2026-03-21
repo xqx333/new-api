@@ -38,7 +38,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 
 	if common.ImageToBase64Enabled {
 		for i := range textReq.Messages {
-			service.ConvertImageUrlsToBase64(&textReq.Messages[i])
+			service.ConvertImageUrlsToBase64(c, &textReq.Messages[i])
 		}
 	}
 
