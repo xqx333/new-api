@@ -103,6 +103,10 @@ const buildModelState = (name, sourceMaps) => {
   const completionRatioMeta = normalizeCompletionRatioMeta(
     sourceMaps.CompletionRatioMeta?.[name],
   );
+  const defaultCompletionRatio = completionRatioMeta.ratio;
+  const effectiveCompletionRatio = hasValue(completionRatio)
+    ? completionRatio
+    : defaultCompletionRatio;
   const cacheRatio = toNumericString(sourceMaps.CacheRatio[name]);
   const createCacheRatio = toNumericString(sourceMaps.CreateCacheRatio[name]);
   const imageRatio = toNumericString(sourceMaps.ImageRatio[name]);
@@ -125,21 +129,12 @@ const buildModelState = (name, sourceMaps) => {
     fixedPrice,
     inputPrice,
     completionRatioLocked: completionRatioMeta.locked,
-    lockedCompletionRatio: completionRatioMeta.ratio,
+    lockedCompletionRatio: defaultCompletionRatio,
     completionPrice:
       inputPriceNumber !== null &&
-      hasValue(
-        completionRatioMeta.locked
-          ? completionRatioMeta.ratio
-          : completionRatio,
-      )
+      hasValue(effectiveCompletionRatio)
         ? formatNumber(
-            inputPriceNumber *
-              Number(
-                completionRatioMeta.locked
-                  ? completionRatioMeta.ratio
-                  : completionRatio,
-              ),
+            inputPriceNumber * Number(effectiveCompletionRatio),
           )
         : '',
     cachePrice:
@@ -355,15 +350,18 @@ const serializeModel = (model, t) => {
 
   result.ModelRatio = toNormalizedNumber(inputPrice / 2);
 
-  if (!model.completionRatioLocked && completionPrice !== null) {
-    result.CompletionRatio = toNormalizedNumber(completionPrice / inputPrice);
-  } else if (
-    model.completionRatioLocked &&
-    hasValue(model.rawRatios.completionRatio)
-  ) {
-    result.CompletionRatio = toNormalizedNumber(
-      model.rawRatios.completionRatio,
-    );
+  if (completionPrice !== null) {
+    const effectiveRatio = toNormalizedNumber(completionPrice / inputPrice);
+    const defaultRatio = hasValue(model.lockedCompletionRatio)
+      ? toNormalizedNumber(model.lockedCompletionRatio)
+      : null;
+
+    if (
+      effectiveRatio !== null &&
+      (defaultRatio === null || effectiveRatio !== defaultRatio)
+    ) {
+      result.CompletionRatio = effectiveRatio;
+    }
   }
   if (cachePrice !== null) {
     result.CacheRatio = toNormalizedNumber(cachePrice / inputPrice);
@@ -722,12 +720,13 @@ export function useModelPricingEditorState({
     return {
       ...model,
       completionPrice:
-        model.completionRatioLocked && hasValue(model.lockedCompletionRatio)
-          ? formatNumber(baseNumber * Number(model.lockedCompletionRatio))
+        !hasValue(model.completionPrice) &&
+        hasValue(model.rawRatios.completionRatio)
+          ? formatNumber(baseNumber * Number(model.rawRatios.completionRatio))
           : !hasValue(model.completionPrice) &&
-              hasValue(model.rawRatios.completionRatio)
-            ? formatNumber(baseNumber * Number(model.rawRatios.completionRatio))
-            : model.completionPrice,
+              hasValue(model.lockedCompletionRatio)
+          ? formatNumber(baseNumber * Number(model.lockedCompletionRatio))
+          : model.completionPrice,
       cachePrice:
         !hasValue(model.cachePrice) && hasValue(model.rawRatios.cacheRatio)
           ? formatNumber(baseNumber * Number(model.rawRatios.cacheRatio))
