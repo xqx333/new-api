@@ -260,6 +260,7 @@ func InitResources() error {
 	service.InitHttpClient()
 
 	service.InitTokenEncoders()
+	service.InitSkipTokenChannelIDs()
 
 	// Initialize SQL Database
 	err = model.InitDB()
