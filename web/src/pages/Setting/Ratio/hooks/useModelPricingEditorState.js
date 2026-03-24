@@ -64,15 +64,6 @@ const toNormalizedNumber = (value) => {
   return formatted === '' ? null : Number(formatted);
 };
 
-const deriveRatioFromPrices = (price, basePrice) => {
-  const priceNumber = toNumberOrNull(price);
-  const baseNumber = toNumberOrNull(basePrice);
-  if (priceNumber === null || baseNumber === null || baseNumber === 0) {
-    return null;
-  }
-  return toNormalizedNumber(priceNumber / baseNumber);
-};
-
 const parseOptionJSON = (rawValue) => {
   if (!rawValue || rawValue.trim() === '') {
     return {};
@@ -710,10 +701,29 @@ export function useModelPricingEditorState({
     }
 
     upsertModel(selectedModel.name, (model) => {
-      const nextModel = { ...model, [field]: '' };
+      const nextModel = {
+        ...model,
+        [field]: '',
+        rawRatios: { ...model.rawRatios },
+      };
+
+      if (field === 'completionPrice') {
+        nextModel.rawRatios.completionRatio = '';
+      } else if (field === 'cachePrice') {
+        nextModel.rawRatios.cacheRatio = '';
+      } else if (field === 'createCachePrice') {
+        nextModel.rawRatios.createCacheRatio = '';
+      } else if (field === 'imagePrice') {
+        nextModel.rawRatios.imageRatio = '';
+      } else if (field === 'audioInputPrice') {
+        nextModel.rawRatios.audioRatio = '';
+      } else if (field === 'audioOutputPrice') {
+        nextModel.rawRatios.audioCompletionRatio = '';
+      }
 
       if (field === 'audioInputPrice') {
         nextModel.audioOutputPrice = '';
+        nextModel.rawRatios.audioCompletionRatio = '';
         setOptionalFieldToggles((prev) => ({
           ...prev,
           [selectedModel.name]: {
@@ -728,80 +738,6 @@ export function useModelPricingEditorState({
     });
   };
 
-  const fillDerivedPricesFromBase = (model, nextInputPrice) => {
-    const baseNumber = toNumberOrNull(nextInputPrice);
-    if (baseNumber === null) {
-      return {
-        ...model,
-        inputPrice: nextInputPrice,
-      };
-    }
-
-    const completionRatio =
-      deriveRatioFromPrices(model.completionPrice, model.inputPrice) ??
-      (hasValue(model.rawRatios.completionRatio)
-        ? toNormalizedNumber(model.rawRatios.completionRatio)
-        : null) ??
-      (hasValue(model.lockedCompletionRatio)
-        ? toNormalizedNumber(model.lockedCompletionRatio)
-        : null);
-
-    const cacheRatio =
-      deriveRatioFromPrices(model.cachePrice, model.inputPrice) ??
-      (hasValue(model.rawRatios.cacheRatio)
-        ? toNormalizedNumber(model.rawRatios.cacheRatio)
-        : null);
-
-    const createCacheRatio =
-      deriveRatioFromPrices(model.createCachePrice, model.inputPrice) ??
-      (hasValue(model.rawRatios.createCacheRatio)
-        ? toNormalizedNumber(model.rawRatios.createCacheRatio)
-        : null);
-
-    const imageRatio =
-      deriveRatioFromPrices(model.imagePrice, model.inputPrice) ??
-      (hasValue(model.rawRatios.imageRatio)
-        ? toNormalizedNumber(model.rawRatios.imageRatio)
-        : null);
-
-    const audioRatio =
-      deriveRatioFromPrices(model.audioInputPrice, model.inputPrice) ??
-      (hasValue(model.rawRatios.audioRatio)
-        ? toNormalizedNumber(model.rawRatios.audioRatio)
-        : null);
-
-    const nextAudioInputPrice =
-      audioRatio !== null ? formatNumber(baseNumber * audioRatio) : '';
-
-    const audioCompletionRatio =
-      deriveRatioFromPrices(model.audioOutputPrice, model.audioInputPrice) ??
-      (hasValue(model.rawRatios.audioCompletionRatio)
-        ? toNormalizedNumber(model.rawRatios.audioCompletionRatio)
-        : null);
-
-    return {
-      ...model,
-      inputPrice: nextInputPrice,
-      completionPrice:
-        completionRatio !== null ? formatNumber(baseNumber * completionRatio) : '',
-      cachePrice:
-        cacheRatio !== null ? formatNumber(baseNumber * cacheRatio) : '',
-      createCachePrice:
-        createCacheRatio !== null
-          ? formatNumber(baseNumber * createCacheRatio)
-          : '',
-      imagePrice:
-        imageRatio !== null ? formatNumber(baseNumber * imageRatio) : '',
-      audioInputPrice: nextAudioInputPrice,
-      audioOutputPrice:
-        nextAudioInputPrice !== '' && audioCompletionRatio !== null
-          ? formatNumber(
-              Number(nextAudioInputPrice) * audioCompletionRatio,
-            )
-          : '',
-    };
-  };
-
   const handleNumericFieldChange = (field, value) => {
     if (!selectedModel || !NUMERIC_INPUT_REGEX.test(value)) {
       return;
@@ -810,8 +746,11 @@ export function useModelPricingEditorState({
     upsertModel(selectedModel.name, (model) => {
       const updatedModel = { ...model, [field]: value };
 
-      if (field === 'inputPrice') {
-        return fillDerivedPricesFromBase(model, value);
+      if (field === 'completionPrice' && value === '') {
+        updatedModel.rawRatios = {
+          ...model.rawRatios,
+          completionRatio: '',
+        };
       }
 
       return updatedModel;
