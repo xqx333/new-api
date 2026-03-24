@@ -350,6 +350,10 @@ const serializeModel = (model, t) => {
 
   result.ModelRatio = toNormalizedNumber(inputPrice / 2);
 
+  const explicitCompletionRatio = hasValue(model.rawRatios.completionRatio)
+    ? toNormalizedNumber(model.rawRatios.completionRatio)
+    : null;
+
   if (completionPrice !== null) {
     const effectiveRatio = toNormalizedNumber(completionPrice / inputPrice);
     const defaultRatio = hasValue(model.lockedCompletionRatio)
@@ -358,10 +362,14 @@ const serializeModel = (model, t) => {
 
     if (
       effectiveRatio !== null &&
-      (defaultRatio === null || effectiveRatio !== defaultRatio)
+      (explicitCompletionRatio !== null ||
+        defaultRatio === null ||
+        effectiveRatio !== defaultRatio)
     ) {
       result.CompletionRatio = effectiveRatio;
     }
+  } else if (explicitCompletionRatio !== null) {
+    result.CompletionRatio = explicitCompletionRatio;
   }
   if (cachePrice !== null) {
     result.CacheRatio = toNormalizedNumber(cachePrice / inputPrice);
