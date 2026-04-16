@@ -134,6 +134,8 @@ var GeminiSafetySetting string
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT
 var CohereSafetySetting string
 
+var ImageToBase64Enabled = true
+
 const (
 	RequestIdKey = "X-Oneapi-Request-Id"
 )

@@ -228,8 +228,7 @@ export default function ModelRatioSettings(props) {
         <Row gutter={16}>
           <Col xs={24} sm={16}>
             <Form.TextArea
-              label={t('模型补全倍率（仅对自定义模型有效）')}
-              extraText={t('仅对自定义模型有效')}
+              label={t('补全倍率')}
               placeholder={t('为一个 JSON 文本，键为模型名称，值为倍率')}
               field={'CompletionRatio'}
               autosize={{ minRows: 6, maxRows: 12 }}
