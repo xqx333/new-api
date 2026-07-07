@@ -311,8 +311,6 @@ func InitResources() error {
 
 	service.InitTokenEncoders()
 
-	service.InitSkipTokenChannelIDs()
-
 	// Initialize SQL Database
 	err = model.InitDB()
 	if err != nil {
