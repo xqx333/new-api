@@ -12,7 +12,10 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/types"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/image/webp"
 )
 
@@ -191,4 +194,158 @@ func getImageConfig(reader io.Reader) (image.Config, string, error) {
 	}
 
 	return image.Config{}, "", err
+}
+
+func ConvertImageUrlsToBase64(c *gin.Context, message *dto.Message) {
+	if message == nil || message.IsStringContent() {
+		return
+	}
+
+	contentList := message.ParseContent()
+	if len(contentList) == 0 {
+		return
+	}
+
+	changed := false
+	for i := range contentList {
+		if contentList[i].Type != dto.ContentTypeImageURL {
+			continue
+		}
+
+		imageURL := contentList[i].GetImageMedia()
+		if imageURL == nil {
+			continue
+		}
+
+		dataURL, err := convertRemoteImageURLToDataURL(c, imageURL.Url)
+		if err != nil {
+			continue
+		}
+
+		imageURL.Url = dataURL
+		contentList[i].ImageUrl = imageURL
+		changed = true
+	}
+
+	if changed {
+		message.SetMediaContent(contentList)
+	}
+}
+
+func ConvertResponsesImageUrlsToBase64(c *gin.Context, request *dto.OpenAIResponsesRequest) {
+	if request == nil || len(request.Input) == 0 || common.GetJsonType(request.Input) != "array" {
+		return
+	}
+
+	var inputs []any
+	if err := common.Unmarshal(request.Input, &inputs); err != nil {
+		return
+	}
+
+	changed := false
+	for i := range inputs {
+		item, ok := inputs[i].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		if convertResponsesInputImageValue(c, item) {
+			changed = true
+		}
+
+		content, ok := item["content"].([]any)
+		if !ok {
+			continue
+		}
+		if convertResponsesContentImages(c, content) {
+			item["content"] = content
+			changed = true
+		}
+	}
+
+	if !changed {
+		return
+	}
+
+	if data, err := common.Marshal(inputs); err == nil {
+		request.Input = data
+	}
+}
+
+func convertResponsesContentImages(c *gin.Context, content []any) bool {
+	changed := false
+	for i := range content {
+		item, ok := content[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		if convertResponsesInputImageValue(c, item) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+func convertResponsesInputImageValue(c *gin.Context, item map[string]any) bool {
+	typeValue, _ := item["type"].(string)
+	if typeValue != "input_image" {
+		return false
+	}
+
+	imageValue, exists := item["image_url"]
+	if !exists {
+		return false
+	}
+
+	switch value := imageValue.(type) {
+	case string:
+		dataURL, err := convertRemoteImageURLToDataURL(c, value)
+		if err != nil {
+			return false
+		}
+		item["image_url"] = dataURL
+		return true
+	case map[string]any:
+		urlValue, _ := value["url"].(string)
+		dataURL, err := convertRemoteImageURLToDataURL(c, urlValue)
+		if err != nil {
+			return false
+		}
+		value["url"] = dataURL
+		item["image_url"] = value
+		return true
+	default:
+		return false
+	}
+}
+
+func convertRemoteImageURLToDataURL(c *gin.Context, url string) (string, error) {
+	if url == "" || strings.HasPrefix(url, "data:") {
+		return "", fmt.Errorf("image url is empty or already encoded")
+	}
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return "", fmt.Errorf("image url is not remote")
+	}
+
+	source := types.NewURLFileSource(url)
+	data, mimeType, err := GetBase64Data(c, source, "image_to_base64")
+	if err != nil {
+		return "", err
+	}
+	if data == "" {
+		return "", fmt.Errorf("image data is empty")
+	}
+
+	if mimeType == "" || mimeType == "application/octet-stream" {
+		_, format, configErr := GetImageConfig(c, source)
+		if configErr != nil {
+			return "", configErr
+		}
+		mimeType = "image/" + format
+	}
+	if !strings.HasPrefix(mimeType, "image/") {
+		return "", fmt.Errorf("invalid content type: %s, required image/*", mimeType)
+	}
+
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, data), nil
 }
