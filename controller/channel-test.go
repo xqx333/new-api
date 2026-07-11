@@ -693,7 +693,7 @@ func detectErrorMessageFromJSONBytes(jsonBytes []byte) string {
 }
 
 func buildTestRequest(model string, endpointType string, channel *model.Channel, isStream bool) dto.Request {
-	testResponsesInput := json.RawMessage(`[{"role":"user","content":"bye"}]`)
+	testResponsesInput := json.RawMessage(`[{"role":"user","content":"hi"}]`)
 
 	// 根据端点类型构建不同的测试请求
 	if endpointType != "" {
@@ -724,7 +724,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 			// 返回 OpenAIResponsesRequest
 			return &dto.OpenAIResponsesRequest{
 				Model:  model,
-				Input:  json.RawMessage(`[{"role":"user","content":"bye"}]`),
+				Input:  json.RawMessage(`[{"role":"user","content":"hi"}]`),
 				Stream: lo.ToPtr(isStream),
 			}
 		case constant.EndpointTypeOpenAIResponseCompact:
@@ -745,7 +745,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				Messages: []dto.Message{
 					{
 						Role:    "user",
-						Content: "bye",
+						Content: "hi",
 					},
 				},
 				MaxTokens: lo.ToPtr(maxTokens),
@@ -790,7 +790,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 	if strings.Contains(strings.ToLower(model), "codex") {
 		return &dto.OpenAIResponsesRequest{
 			Model:  model,
-			Input:  json.RawMessage(`[{"role":"user","content":"bye"}]`),
+			Input:  json.RawMessage(`[{"role":"user","content":"hi"}]`),
 			Stream: lo.ToPtr(isStream),
 		}
 	}
@@ -802,7 +802,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 		Messages: []dto.Message{
 			{
 				Role:    "user",
-				Content: "bye",
+				Content: "hi",
 			},
 		},
 	}

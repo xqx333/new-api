@@ -3,11 +3,8 @@ package service
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
-	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -21,36 +18,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-var skipTokenChannelIDs = map[int]struct{}{}
-
-func InitSkipTokenChannelIDs() {
-	skipTokenChannelIDs = parseSkipTokenChannelIDs(os.Getenv("SKIP_TOKEN_CHANNEL_IDS"))
-}
-
-func parseSkipTokenChannelIDs(raw string) map[int]struct{} {
-	parsed := make(map[int]struct{})
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return parsed
-	}
-
-	for _, part := range strings.Split(raw, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-
-		id, err := strconv.Atoi(part)
-		if err != nil {
-			log.Printf("invalid channel id in SKIP_TOKEN_CHANNEL_IDS: %s", part)
-			continue
-		}
-		parsed[id] = struct{}{}
-	}
-
-	return parsed
-}
 
 func getImageToken(c *gin.Context, fileMeta *types.FileMeta, model string, stream bool) (int, error) {
 	if fileMeta == nil || fileMeta.Source == nil {
@@ -210,11 +177,6 @@ func getImageToken(c *gin.Context, fileMeta *types.FileMeta, model string, strea
 }
 
 func EstimateRequestToken(c *gin.Context, meta *types.TokenCountMeta, info *relaycommon.RelayInfo) (int, error) {
-	channelID := common.GetContextKeyInt(c, constant.ContextKeyChannelId)
-	if _, skip := skipTokenChannelIDs[channelID]; skip {
-		return 2000, nil
-	}
-
 	// 是否统计token
 	if !constant.CountToken {
 		return 0, nil

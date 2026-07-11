@@ -96,6 +96,10 @@ var defaultModelRatio = map[string]float64{
 	"gpt-5-mini-2025-08-07":                     0.125,
 	"gpt-5-nano":                                0.025,
 	"gpt-5-nano-2025-08-07":                     0.025,
+	"gpt-5.5":                                   2.5, // $5 / 1M tokens
+	"gpt-5.6-sol":                               2.5,
+	"gpt-5.6-terra":                             1.25,
+	"gpt-5.6-luna":                              0.5,
 	"gpt-3.5-turbo":                             0.25,
 	"gpt-3.5-turbo-0613":                        0.75,
 	"gpt-3.5-turbo-16k":                         1.5, // $0.003 / 1K tokens
@@ -432,10 +436,6 @@ func UpdateCompletionRatioByJSONString(jsonStr string) error {
 func GetCompletionRatio(name string) float64 {
 	name = FormatMatchingModelName(name)
 
-	if ratio, ok := completionRatioMap.Get(name); ok {
-		return ratio
-	}
-
 	if strings.Contains(name, "/") {
 		if ratio, ok := completionRatioMap.Get(name); ok {
 			return ratio
@@ -444,6 +444,9 @@ func GetCompletionRatio(name string) float64 {
 	hardCodedRatio, contain := getHardcodedCompletionModelRatio(name)
 	if contain {
 		return hardCodedRatio
+	}
+	if ratio, ok := completionRatioMap.Get(name); ok {
+		return ratio
 	}
 	return hardCodedRatio
 }
@@ -456,13 +459,6 @@ type CompletionRatioInfo struct {
 func GetCompletionRatioInfo(name string) CompletionRatioInfo {
 	name = FormatMatchingModelName(name)
 
-	if ratio, ok := completionRatioMap.Get(name); ok {
-		return CompletionRatioInfo{
-			Ratio:  ratio,
-			Locked: false,
-		}
-	}
-
 	if strings.Contains(name, "/") {
 		if ratio, ok := completionRatioMap.Get(name); ok {
 			return CompletionRatioInfo{
@@ -472,7 +468,20 @@ func GetCompletionRatioInfo(name string) CompletionRatioInfo {
 		}
 	}
 
-	hardCodedRatio, _ := getHardcodedCompletionModelRatio(name)
+	hardCodedRatio, locked := getHardcodedCompletionModelRatio(name)
+	if locked {
+		return CompletionRatioInfo{
+			Ratio:  hardCodedRatio,
+			Locked: true,
+		}
+	}
+
+	if ratio, ok := completionRatioMap.Get(name); ok {
+		return CompletionRatioInfo{
+			Ratio:  ratio,
+			Locked: false,
+		}
+	}
 
 	return CompletionRatioInfo{
 		Ratio:  hardCodedRatio,
@@ -499,8 +508,8 @@ func getHardcodedCompletionModelRatio(name string) (float64, bool) {
 		}
 		// gpt-5 匹配
 		if strings.HasPrefix(name, "gpt-5") {
-			if strings.HasPrefix(name, "gpt-5.5") {
-				return 6, true
+			if !strings.Contains(name, ".") {
+				return 8, true
 			}
 			if strings.HasPrefix(name, "gpt-5.4") {
 				if strings.HasPrefix(name, "gpt-5.4-nano") {
@@ -508,7 +517,8 @@ func getHardcodedCompletionModelRatio(name string) (float64, bool) {
 				}
 				return 6, true
 			}
-			return 8, true
+			// gpt-5.5 and later models are unlocked
+			return 6, false
 		}
 		// gpt-4.5-preview匹配
 		if strings.HasPrefix(name, "gpt-4.5-preview") {
