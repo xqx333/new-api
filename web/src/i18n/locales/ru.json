@@ -2382,6 +2382,7 @@
     "JSON is invalid. Please check the syntax.": "JSON недействителен. Проверьте синтаксис.",
     "JSON map of group → description exposed when users create API keys.": "JSON-карта группы → описание, отображаемое при создании пользователями ключей API.",
     "JSON map of group → ratio applied when the user selects the group explicitly.": "JSON-карта группы → соотношение, применяемое, когда пользователь явно выбирает группу.",
+    "JSON map of model → completion ratio. Explicit entries override backend defaults.": "JSON-карта модели и коэффициента завершения. Явные значения переопределяют серверные значения по умолчанию.",
     "JSON map of model → multiplier applied to quota billing.": "JSON-карта модели → множитель, применяемый к тарификации по квоте.",
     "JSON map of model → USD cost per request. Takes precedence over ratio based billing.": "JSON-карта модели → стоимость в долларах США за запрос. Имеет приоритет над тарификацией на основе соотношения.",
     "JSON mode": "Режим JSON",

@@ -112,7 +112,7 @@ const modelJsonFields: Array<{
     name: 'CompletionRatio',
     labelKey: 'Completion ratio',
     descriptionKey:
-      'Applies to custom completion endpoints. JSON map of model → ratio.',
+      'JSON map of model → completion ratio. Explicit entries override backend defaults.',
   },
   {
     name: 'ImageRatio',
