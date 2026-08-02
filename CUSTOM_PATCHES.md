@@ -39,6 +39,7 @@
 ## 用户与模型精确限流
 
 - 系统设置：`ModelRequestRateLimitUserModel`
+- 隐藏限流详情：`ModelRequestRateLimitHideDetailsEnabled`，默认 `false`。
 - 配置格式：JSON 数组，每项包含 `user_id`、`model`、`max_requests` 和 `max_success`。
 - 作用：只对指定用户请求指定原始模型时应用独立速率限制，并对该用户的所有 API 密钥共享计数。
 - 行为：
@@ -47,6 +48,8 @@
   - 模型按渠道映射前的客户端请求名称精确、区分大小写匹配，不支持通配符。
   - `max_requests=0` 或 `max_success=0` 分别表示该项不限；专属规则不允许两项同时为 `0`。
   - 全局或分组的两项限制均为 `0` 时直接放行，不创建 Redis 或内存计数。
+  - 开启“隐藏限流详情”后，拒绝请求时只返回通用 OpenAI 格式 `429`，不包含限额、时间窗口、用户或模型信息；关闭时保留上游原有响应。
+  - 隐藏后的错误固定为 `type=requests`、`code=rate_limit_exceeded`，提示为 `Rate limit reached for requests. Please try again later.`。
 - 性能原则：
   - 只有当前用户至少配置了一条专属规则时才提前解析模型。
   - 模型解析结果由限流和渠道分发复用，避免重复读取请求体。

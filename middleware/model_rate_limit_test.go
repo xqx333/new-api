@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -50,6 +51,7 @@ func preserveModelRequestRateLimitSettings(t *testing.T) {
 	t.Helper()
 
 	originalEnabled := setting.ModelRequestRateLimitEnabled
+	originalHideDetailsEnabled := setting.ModelRequestRateLimitHideDetailsEnabled
 	originalDuration := setting.ModelRequestRateLimitDurationMinutes
 	originalTotal := setting.ModelRequestRateLimitCount
 	originalSuccess := setting.ModelRequestRateLimitSuccessCount
@@ -58,6 +60,7 @@ func preserveModelRequestRateLimitSettings(t *testing.T) {
 	originalRedisEnabled := common.RedisEnabled
 
 	setting.ModelRequestRateLimitEnabled = true
+	setting.ModelRequestRateLimitHideDetailsEnabled = false
 	setting.ModelRequestRateLimitDurationMinutes = 1
 	setting.ModelRequestRateLimitCount = 0
 	setting.ModelRequestRateLimitSuccessCount = 0
@@ -67,6 +70,7 @@ func preserveModelRequestRateLimitSettings(t *testing.T) {
 
 	t.Cleanup(func() {
 		setting.ModelRequestRateLimitEnabled = originalEnabled
+		setting.ModelRequestRateLimitHideDetailsEnabled = originalHideDetailsEnabled
 		setting.ModelRequestRateLimitDurationMinutes = originalDuration
 		setting.ModelRequestRateLimitCount = originalTotal
 		setting.ModelRequestRateLimitSuccessCount = originalSuccess
@@ -190,6 +194,77 @@ func TestRedisUserModelTotalRateLimit(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, performModelRateLimitRequest(router, http.MethodPost, "/v1/chat/completions", "application/json", `{"model":"gpt-5.4"}`, 4002, "").Code)
 	assert.True(t, redisServer.Exists("rateLimit:4002:model:gpt-5.4"))
 	assert.False(t, redisServer.Exists("rateLimit:4002"))
+}
+
+func TestModelRateLimitReturnsGenericOpenAIError(t *testing.T) {
+	tests := []struct {
+		name        string
+		userId      int
+		useRedis    bool
+		maxRequests int
+		maxSuccess  int
+	}{
+		{name: "memory", userId: 4101, useRedis: false, maxRequests: 1, maxSuccess: 0},
+		{name: "redis", userId: 4102, useRedis: true, maxRequests: 0, maxSuccess: 1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			preserveModelRequestRateLimitSettings(t)
+			setting.ModelRequestRateLimitHideDetailsEnabled = true
+			if test.useRedis {
+				useRateLimitMiniRedis(t)
+			}
+			require.NoError(t, setting.UpdateModelRequestRateLimitUserModelByJSONString(
+				fmt.Sprintf(`[{"user_id":%d,"model":"gpt-5.4","max_requests":%d,"max_success":%d}]`, test.userId, test.maxRequests, test.maxSuccess),
+			))
+			router := newModelRateLimitTestRouter(http.StatusNoContent, nil)
+
+			assert.Equal(t, http.StatusNoContent, performModelRateLimitRequest(router, http.MethodPost, "/v1/chat/completions", "application/json", `{"model":"gpt-5.4"}`, test.userId, "").Code)
+			response := performModelRateLimitRequest(router, http.MethodPost, "/v1/chat/completions", "application/json", `{"model":"gpt-5.4"}`, test.userId, "")
+
+			require.Equal(t, http.StatusTooManyRequests, response.Code)
+			assert.JSONEq(t, `{"error":{"message":"Rate limit reached for requests. Please try again later.","type":"requests","param":null,"code":"rate_limit_exceeded"}}`, response.Body.String())
+			assert.Empty(t, response.Header().Get("Retry-After"))
+		})
+	}
+}
+
+func TestModelRateLimitKeepsDefaultErrorWhenDetailsAreVisible(t *testing.T) {
+	tests := []struct {
+		name        string
+		userId      int
+		useRedis    bool
+		maxRequests int
+		maxSuccess  int
+	}{
+		{name: "memory", userId: 4201, useRedis: false, maxRequests: 1, maxSuccess: 0},
+		{name: "redis", userId: 4202, useRedis: true, maxRequests: 0, maxSuccess: 1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			preserveModelRequestRateLimitSettings(t)
+			if test.useRedis {
+				useRateLimitMiniRedis(t)
+			}
+			require.NoError(t, setting.UpdateModelRequestRateLimitUserModelByJSONString(
+				fmt.Sprintf(`[{"user_id":%d,"model":"gpt-5.4","max_requests":%d,"max_success":%d}]`, test.userId, test.maxRequests, test.maxSuccess),
+			))
+			router := newModelRateLimitTestRouter(http.StatusNoContent, nil)
+
+			assert.Equal(t, http.StatusNoContent, performModelRateLimitRequest(router, http.MethodPost, "/v1/chat/completions", "application/json", `{"model":"gpt-5.4"}`, test.userId, "").Code)
+			response := performModelRateLimitRequest(router, http.MethodPost, "/v1/chat/completions", "application/json", `{"model":"gpt-5.4"}`, test.userId, "")
+
+			require.Equal(t, http.StatusTooManyRequests, response.Code)
+			if test.useRedis {
+				assert.Contains(t, response.Body.String(), "您已达到请求数限制")
+				assert.Contains(t, response.Body.String(), `"type":"new_api_error"`)
+			} else {
+				assert.Empty(t, response.Body.String())
+			}
+		})
+	}
 }
 
 type countingReadCloser struct {
