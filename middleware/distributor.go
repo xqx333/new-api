@@ -29,6 +29,15 @@ type ModelRequest struct {
 	Group string `json:"group,omitempty"`
 }
 
+const modelRequestCacheKey = "model_request_cache"
+
+type modelRequestCache struct {
+	request             ModelRequest
+	requestedModel      string
+	shouldSelectChannel bool
+	err                 error
+}
+
 func Distribute() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		var channel *model.Channel
@@ -250,6 +259,35 @@ func getJSONStringValue(result gjson.Result, field string) (string, error) {
 }
 
 func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
+	if cached, exists := c.Get(modelRequestCacheKey); exists {
+		if modelRequest, ok := cached.(*modelRequestCache); ok {
+			if modelRequest.err != nil {
+				return nil, modelRequest.shouldSelectChannel, modelRequest.err
+			}
+			return &modelRequest.request, modelRequest.shouldSelectChannel, nil
+		}
+	}
+
+	modelRequest, shouldSelectChannel, err := parseModelRequest(c)
+	cached := &modelRequestCache{
+		shouldSelectChannel: shouldSelectChannel,
+		err:                 err,
+	}
+	if modelRequest != nil {
+		cached.request = *modelRequest
+		cached.requestedModel = modelRequest.Model
+		if err == nil && strings.HasPrefix(c.Request.URL.Path, "/v1/responses/compact") && modelRequest.Model != "" {
+			cached.request.Model = ratio_setting.WithCompactModelSuffix(modelRequest.Model)
+		}
+	}
+	c.Set(modelRequestCacheKey, cached)
+	if err != nil {
+		return nil, shouldSelectChannel, err
+	}
+	return &cached.request, cached.shouldSelectChannel, nil
+}
+
+func parseModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 	var modelRequest ModelRequest
 	shouldSelectChannel := true
 	var err error
@@ -409,9 +447,6 @@ func getModelRequest(c *gin.Context) (*ModelRequest, bool, error) {
 		common.SetContextKey(c, constant.ContextKeyTokenGroup, modelRequest.Group)
 	}
 
-	if strings.HasPrefix(c.Request.URL.Path, "/v1/responses/compact") && modelRequest.Model != "" {
-		modelRequest.Model = ratio_setting.WithCompactModelSuffix(modelRequest.Model)
-	}
 	return &modelRequest, shouldSelectChannel, nil
 }
 

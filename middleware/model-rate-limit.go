@@ -76,14 +76,13 @@ func recordRedisRequest(ctx context.Context, rdb *redis.Client, key string, maxC
 }
 
 // Redis限流处理器
-func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) gin.HandlerFunc {
+func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, keyScope string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userId := strconv.Itoa(c.GetInt("id"))
 		ctx := context.Background()
 		rdb := common.RDB
 
 		// 1. 检查成功请求数限制
-		successKey := fmt.Sprintf("rateLimit:%s:%s", ModelRequestRateLimitSuccessCountMark, userId)
+		successKey := fmt.Sprintf("rateLimit:%s:%s", ModelRequestRateLimitSuccessCountMark, keyScope)
 		allowed, err := checkRedisRateLimit(ctx, rdb, successKey, successMaxCount, duration)
 		if err != nil {
 			fmt.Println("检查成功请求数限制失败:", err.Error())
@@ -97,7 +96,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 
 		//2.检查总请求数限制并记录总请求（当totalMaxCount为0时会自动跳过，使用令牌桶限流器
 		if totalMaxCount > 0 {
-			totalKey := fmt.Sprintf("rateLimit:%s", userId)
+			totalKey := fmt.Sprintf("rateLimit:%s", keyScope)
 			// 初始化
 			tb := limiter.New(ctx, rdb)
 			allowed, err = tb.Allow(
@@ -116,6 +115,7 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 
 			if !allowed {
 				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到总请求数限制：%d分钟内最多请求%d次，包括失败次数，请检查您的请求是否正确", setting.ModelRequestRateLimitDurationMinutes, totalMaxCount))
+				return
 			}
 		}
 
@@ -130,13 +130,12 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 }
 
 // 内存限流处理器
-func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) gin.HandlerFunc {
+func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int, keyScope string) gin.HandlerFunc {
 	inMemoryRateLimiter.Init(time.Duration(setting.ModelRequestRateLimitDurationMinutes) * time.Minute)
 
 	return func(c *gin.Context) {
-		userId := strconv.Itoa(c.GetInt("id"))
-		totalKey := ModelRequestRateLimitCountMark + userId
-		successKey := ModelRequestRateLimitSuccessCountMark + userId
+		totalKey := ModelRequestRateLimitCountMark + keyScope
+		successKey := ModelRequestRateLimitSuccessCountMark + keyScope
 
 		// 1. 检查总请求数限制（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
@@ -145,10 +144,8 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 			return
 		}
 
-		// 2. 检查成功请求数限制
-		// 使用一个临时key来检查限制，这样可以避免实际记录
-		checkKey := successKey + "_check"
-		if !inMemoryRateLimiter.Request(checkKey, successMaxCount, duration) {
+		// 2. 检查成功请求数限制，但只在请求成功后记录
+		if successMaxCount > 0 && !inMemoryRateLimiter.Check(successKey, successMaxCount, duration) {
 			c.Status(http.StatusTooManyRequests)
 			c.Abort()
 			return
@@ -158,7 +155,7 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		c.Next()
 
 		// 4. 如果请求成功，记录到实际的成功请求计数中
-		if c.Writer.Status() < 400 {
+		if successMaxCount > 0 && c.Writer.Status() < 400 {
 			inMemoryRateLimiter.Request(successKey, successMaxCount, duration)
 		}
 	}
@@ -177,6 +174,8 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 		duration := int64(setting.ModelRequestRateLimitDurationMinutes * 60)
 		totalMaxCount := setting.ModelRequestRateLimitCount
 		successMaxCount := setting.ModelRequestRateLimitSuccessCount
+		userId := c.GetInt("id")
+		keyScope := strconv.Itoa(userId)
 
 		// 获取分组
 		group := common.GetContextKeyString(c, constant.ContextKeyTokenGroup)
@@ -191,11 +190,34 @@ func ModelRequestRateLimit() func(c *gin.Context) {
 			successMaxCount = groupSuccessCount
 		}
 
+		if setting.HasUserModelRateLimit(userId) {
+			modelRequest, _, err := getModelRequest(c)
+			if err == nil {
+				requestedModel := modelRequest.Model
+				if cached, exists := c.Get(modelRequestCacheKey); exists {
+					if cachedRequest, ok := cached.(*modelRequestCache); ok {
+						requestedModel = cachedRequest.requestedModel
+					}
+				}
+				userModelTotalCount, userModelSuccessCount, matched := setting.GetUserModelRateLimit(userId, requestedModel)
+				if matched {
+					totalMaxCount = userModelTotalCount
+					successMaxCount = userModelSuccessCount
+					keyScope = fmt.Sprintf("%d:model:%s", userId, requestedModel)
+				}
+			}
+		}
+
+		if totalMaxCount == 0 && successMaxCount == 0 {
+			c.Next()
+			return
+		}
+
 		// 根据存储类型选择并执行限流处理器
 		if common.RedisEnabled {
-			redisRateLimitHandler(duration, totalMaxCount, successMaxCount)(c)
+			redisRateLimitHandler(duration, totalMaxCount, successMaxCount, keyScope)(c)
 		} else {
-			memoryRateLimitHandler(duration, totalMaxCount, successMaxCount)(c)
+			memoryRateLimitHandler(duration, totalMaxCount, successMaxCount, keyScope)(c)
 		}
 	}
 }
