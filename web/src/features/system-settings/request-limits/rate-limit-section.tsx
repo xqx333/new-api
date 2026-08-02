@@ -46,6 +46,8 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { RateLimitVisualEditor } from './rate-limit-visual-editor'
+import { isValidUserModelRateLimitJSON } from './user-model-rate-limit'
+import { UserModelRateLimitVisualEditor } from './user-model-rate-limit-visual-editor'
 
 const isValidJSON = (value: string | undefined) => {
   if (!value || value.trim() === '') return true
@@ -57,7 +59,7 @@ const isValidJSON = (value: string | undefined) => {
     for (const [, val] of Object.entries(parsed)) {
       if (!Array.isArray(val) || val.length !== 2) return false
       if (typeof val[0] !== 'number' || typeof val[1] !== 'number') return false
-      if (val[0] < 0 || val[1] < 1) return false
+      if (val[0] < 0 || val[1] < 0) return false
       if (val[0] > 2147483647 || val[1] > 2147483647) return false
     }
     return true
@@ -71,11 +73,16 @@ const createRateLimitSchema = (t: (key: string) => string) =>
     ModelRequestRateLimitEnabled: z.boolean(),
     ModelRequestRateLimitDurationMinutes: z.number().min(0),
     ModelRequestRateLimitCount: z.number().min(0).max(100000000),
-    ModelRequestRateLimitSuccessCount: z.number().min(1).max(100000000),
+    ModelRequestRateLimitSuccessCount: z.number().min(0).max(100000000),
     ModelRequestRateLimitGroup: z
       .string()
       .optional()
       .refine(isValidJSON, {
+        message: t('Invalid JSON format or values out of allowed range'),
+      }),
+    ModelRequestRateLimitUserModel: z
+      .string()
+      .refine(isValidUserModelRateLimitJSON, {
         message: t('Invalid JSON format or values out of allowed range'),
       }),
   })
@@ -89,7 +96,8 @@ type RateLimitSectionProps = {
 export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
-  const [useVisualEditor, setUseVisualEditor] = useState(true)
+  const [useGroupVisualEditor, setUseGroupVisualEditor] = useState(true)
+  const [useUserModelVisualEditor, setUseUserModelVisualEditor] = useState(true)
 
   const rateLimitSchema = createRateLimitSchema(t)
 
@@ -161,7 +169,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                         step={1}
                         {...field}
                         onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 0)
+                          field.onChange(Number.parseInt(e.target.value) || 0)
                         }
                       />
                       <span className='text-muted-foreground text-sm'>
@@ -192,7 +200,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                         step={1}
                         {...field}
                         onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 0)
+                          field.onChange(Number.parseInt(e.target.value) || 0)
                         }
                       />
                       <span className='text-muted-foreground text-sm'>
@@ -218,12 +226,12 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     <div className='flex items-center gap-2'>
                       <Input
                         type='number'
-                        min={1}
+                        min={0}
                         max={100000000}
                         step={1}
                         {...field}
                         onChange={(e) =>
-                          field.onChange(parseInt(e.target.value) || 1)
+                          field.onChange(Number.parseInt(e.target.value) || 0)
                         }
                       />
                       <span className='text-muted-foreground text-sm'>
@@ -232,7 +240,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     </div>
                   </FormControl>
                   <FormDescription>
-                    {t('Only successful requests')}
+                    {t('Only successful requests, 0 = unlimited')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -251,9 +259,11 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     type='button'
                     variant='outline'
                     size='sm'
-                    onClick={() => setUseVisualEditor(!useVisualEditor)}
+                    onClick={() =>
+                      setUseGroupVisualEditor(!useGroupVisualEditor)
+                    }
                   >
-                    {useVisualEditor ? (
+                    {useGroupVisualEditor ? (
                       <>
                         <Code2 className='mr-2 h-4 w-4' />
                         {t('JSON Mode')}
@@ -267,7 +277,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                   </Button>
                 </div>
                 <FormControl>
-                  {useVisualEditor ? (
+                  {useGroupVisualEditor ? (
                     <RateLimitVisualEditor
                       value={field.value || ''}
                       onChange={field.onChange}
@@ -281,7 +291,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     />
                   )}
                 </FormControl>
-                {!useVisualEditor && (
+                {!useGroupVisualEditor && (
                   <FormDescription>
                     <div className='space-y-1 text-xs'>
                       <p className='font-semibold'>{t('Format:')}</p>
@@ -296,7 +306,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                         </li>
                         <li>
                           {t(
-                            'maxRequests ≥ 0, maxSuccess ≥ 1, both ≤ 2,147,483,647'
+                            'maxRequests ≥ 0, maxSuccess ≥ 0, both ≤ 2,147,483,647'
                           )}
                         </li>
                         <li>
@@ -308,6 +318,80 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     </div>
                   </FormDescription>
                 )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='ModelRequestRateLimitUserModel'
+            render={({ field }) => (
+              <FormItem>
+                <div className='flex items-center justify-between'>
+                  <FormLabel>{t('User and model rate limits')}</FormLabel>
+                  <Button
+                    type='button'
+                    variant='outline'
+                    size='sm'
+                    onClick={() =>
+                      setUseUserModelVisualEditor(!useUserModelVisualEditor)
+                    }
+                  >
+                    {useUserModelVisualEditor ? (
+                      <>
+                        <Code2 className='mr-2 h-4 w-4' />
+                        {t('JSON Mode')}
+                      </>
+                    ) : (
+                      <>
+                        <Palette className='mr-2 h-4 w-4' />
+                        {t('Visual Mode')}
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <FormControl>
+                  {useUserModelVisualEditor ? (
+                    <UserModelRateLimitVisualEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  ) : (
+                    <Textarea
+                      rows={10}
+                      placeholder={`[
+  {
+    "user_id": 123,
+    "model": "gpt-5.4",
+    "max_requests": 20,
+    "max_success": 10
+  }
+]`}
+                      className='font-mono text-sm'
+                      {...field}
+                    />
+                  )}
+                </FormControl>
+                <FormDescription>
+                  <div className='space-y-1 text-xs'>
+                    <p>
+                      {t(
+                        'Rules use the exact requested model name before channel mapping.'
+                      )}
+                    </p>
+                    <p>
+                      {t(
+                        'User-model rules override group and global limits and share the same period.'
+                      )}
+                    </p>
+                    <p>
+                      {t(
+                        'Each limit can be 0 for unlimited, but they cannot both be 0.'
+                      )}
+                    </p>
+                  </div>
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
